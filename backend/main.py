@@ -6,7 +6,7 @@ A股涨停连板监控系统 V1 - 后端
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import akshare as ak
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 app = FastAPI(title="A股涨停连板监控系统 V1")
@@ -158,6 +158,55 @@ def get_limit_up_stocks(date: Optional[str] = None) -> Dict:
 def health_check():
     """健康检查"""
     return {"status": "ok"}
+
+
+@app.get("/api/emotion-history")
+def get_emotion_history(days: int = 10) -> Dict:
+    """
+    获取情绪指数历史数据
+    days: 获取最近多少天的数据，默认10天
+    返回：每日情绪指数数据
+    """
+    result = []
+    today = datetime.now()
+
+    for i in range(days):
+        date = (today - timedelta(days=i)).strftime("%Y%m%d")
+        try:
+            df = ak.stock_zt_pool_em(date=date)
+
+            if df is None or len(df) == 0:
+                continue
+
+            stocks = []
+            for _, row in df.iterrows():
+                try:
+                    limit_days = int(row.iloc[14]) if str(row.iloc[14]) != "-" else 1
+                except:
+                    limit_days = 1
+                stocks.append({"limit_up_days": limit_days})
+
+            lb_count = len([s for s in stocks if s["limit_up_days"] >= 2])
+            high_count = len([s for s in stocks if s["limit_up_days"] >= 3])
+            max_board = max([s["limit_up_days"] for s in stocks], default=0)
+            zt_count = len(stocks)
+            emotion_score = lb_count * 0.5 + high_count * 1 + max_board * 2
+
+            result.append(
+                {
+                    "date": date[4:6] + "-" + date[6:8],
+                    "lbCount": lb_count,
+                    "highCount": high_count,
+                    "maxBoard": max_board,
+                    "emotionScore": emotion_score,
+                    "ztCount": zt_count,
+                }
+            )
+        except Exception as e:
+            print(f"获取 {date} 数据失败: {e}")
+
+    result.reverse()
+    return {"data": result}
 
 
 if __name__ == "__main__":

@@ -104,6 +104,8 @@
       </div>
     </div>
 
+    <LimitUpChart :data="emotionData" />
+
     <AiChat :stocks="stocks" :boardStats="currentBoardStats" />
   </div>
 </template>
@@ -112,12 +114,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
+import LimitUpChart from './components/LimitUpChart.vue'
 
 const stocks = ref([])
 const loading = ref(false)
 const currentTime = ref('')
 const activeTab = ref('all')
 const selectedDate = ref(new Date().toLocaleDateString('zh-CN').replace(/\//g, '-').replace(/-/g, ''))
+const emotionData = ref([])
 let refreshTimer = null
 
 const continuousStocks = computed(() => stocks.value.filter(s => s.limit_up_days >= 2).length)
@@ -183,8 +187,19 @@ const fetchData = async () => {
   }
 }
 
+const fetchEmotionHistory = async () => {
+  try {
+    const response = await fetch('/api/emotion-history?days=20')
+    const result = await response.json()
+    emotionData.value = result.data || []
+  } catch (error) {
+    console.error('获取情绪数据失败:', error)
+  }
+}
+
 onMounted(() => {
   fetchData()
+  fetchEmotionHistory()
   refreshTimer = setInterval(fetchData, 10000)
 })
 
