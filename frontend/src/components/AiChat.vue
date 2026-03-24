@@ -154,7 +154,7 @@ const sendMessage = async () => {
         'Authorization': `Bearer ${API_KEY}`
       },
       body: JSON.stringify({
-        model: 'qwen3.5-plus',
+        model: 'MiniMax',
         messages: [
           { role: 'system', content: buildSystemPrompt() },
           ...messages.value.map(m => ({ role: m.role, content: m.content }))
