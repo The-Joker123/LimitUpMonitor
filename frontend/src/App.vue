@@ -103,12 +103,15 @@
         </table>
       </div>
     </div>
+
+    <AiChat />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
+import AiChat from './components/AiChat.vue'
 
 const stocks = ref([])
 const loading = ref(false)
