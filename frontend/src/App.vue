@@ -104,7 +104,7 @@
       </div>
     </div>
 
-    <AiChat />
+    <AiChat :stocks="stocks" :boardStats="currentBoardStats" />
   </div>
 </template>
 

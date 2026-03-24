@@ -19,8 +19,8 @@
           <p>👋 你好！我是 AI 助手</p>
           <p class="sub">基于阿里云百炼 Coding Plan，支持 Qwen3.5、GLM-5、MiniMax M2.5、Kimi K2.5</p>
           <div class="quick-prompts">
-            <button v-for="prompt in quickPrompts" :key="prompt" @click="sendQuickPrompt(prompt)">
-              {{ prompt }}
+            <button v-for="prompt in quickPrompts" :key="prompt.text" @click="sendQuickPrompt(prompt.text)">
+              {{ prompt.text }}
             </button>
           </div>
         </div>
@@ -53,7 +53,18 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, computed } from 'vue'
+
+const props = defineProps({
+  stocks: {
+    type: Array,
+    default: () => []
+  },
+  boardStats: {
+    type: Array,
+    default: () => []
+  }
+})
 
 const isOpen = ref(false)
 const inputText = ref('')
@@ -61,14 +72,65 @@ const messages = ref([])
 const loading = ref(false)
 const messagesContainer = ref(null)
 
-const quickPrompts = [
-  '分析今日涨停主线',
-  '连板股有哪些',
-  '电力板块涨停多少只'
-]
+const quickPrompts = computed(() => [
+  { text: '分析今日涨停主线', context: '分析当前页面的涨停数据，找出核心主线板块' },
+  { text: '连板股有哪些', context: '列出连续涨停的股票及其连板天数' },
+  { text: '哪些板块涨停最多', context: '统计各板块涨停数量，按数量排序' }
+])
 
 const API_KEY = import.meta.env.VITE_CODING_PLAN_KEY || ''
 const BASE_URL = 'https://coding-intl.dashscope.aliyuncs.com/v1'
+
+const formatContextData = () => {
+  if (!props.stocks || props.stocks.length === 0) {
+    return '暂无涨停数据'
+  }
+
+  const totalCount = props.stocks.length
+  const continuousStocks = props.stocks.filter(s => s.limit_up_days >= 2)
+  const maxContinuous = Math.max(...props.stocks.map(s => s.limit_up_days))
+
+  const industryStats = {}
+  props.stocks.forEach(s => {
+    industryStats[s.industry] = (industryStats[s.industry] || 0) + 1
+  })
+  const topIndustries = Object.entries(industryStats)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, count]) => `${name}: ${count}只`)
+
+  const limitUpStocks = props.stocks
+    .sort((a, b) => b.pct_chg - a.pct_chg)
+    .slice(0, 20)
+    .map(s => `${s.name}(${s.code}) 涨幅${s.pct_chg}% 连板${s.limit_up_days}天 ${s.industry}`)
+
+  return `
+【当前页面数据摘要】
+- 涨停总数: ${totalCount}只
+- 连板股: ${continuousStocks.length}只
+- 最高连板: ${maxContinuous}板
+
+【板块统计 TOP10】
+${topIndustries.join('\n')}
+
+【涨停股明细(涨幅前20)】
+${limitUpStocks.join('\n')}
+`.trim()
+}
+
+const buildSystemPrompt = () => {
+  const contextData = formatContextData()
+  return `你是一个专业的金融助手，专门帮助用户分析股票涨停数据。
+
+【重要】用户当前正在查看一个"涨停连板监控"页面，页面上的数据如下：
+${contextData}
+
+请基于以上数据回答用户的问题。如果用户问的是分析类问题，请结合数据给出专业的分析意见。
+回答要求：
+1. 简洁专业，用中文回答
+2. 如需引用数据，请从上述数据中提取
+3. 如果数据不足或无法回答，请说明情况`.trim()
+}
 
 const sendQuickPrompt = (prompt) => {
   inputText.value = prompt
@@ -80,7 +142,6 @@ const sendMessage = async () => {
 
   const userMsg = { role: 'user', content: inputText.value.trim() }
   messages.value.push(userMsg)
-  const question = inputText.value
   inputText.value = ''
   loading.value = true
   scrollToBottom()
@@ -95,7 +156,7 @@ const sendMessage = async () => {
       body: JSON.stringify({
         model: 'qwen3.5-plus',
         messages: [
-          { role: 'system', content: '你是一个专业的金融助手，专门帮助用户分析股票涨停数据。请用简洁专业的语言回答。' },
+          { role: 'system', content: buildSystemPrompt() },
           ...messages.value.map(m => ({ role: m.role, content: m.content }))
         ],
         stream: false
