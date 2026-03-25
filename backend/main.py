@@ -171,8 +171,34 @@ def get_emotion_history(days: int = 10) -> Dict:
     """
     获取情绪指数历史数据
     days: 获取最近多少天的数据，默认10天
-    返回：每日情绪指数数据
+    返回：每日情绪指数数据（含上证指数）
     """
+    # 获取上证指数数据
+    sh_index_data = {}
+    try:
+        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData"
+        params = {
+            "symbol": "sh000001",
+            "scale": 240,
+            "ma": "no",
+            "datalen": days,
+        }
+        response = requests.get(url, params=params, timeout=5)
+        sh_data = response.json()
+        if sh_data:
+            prev_close = None
+            for item in sh_data:
+                date_str = item.get("day", "")
+                close = float(item.get("close", 0))
+                if prev_close is not None and prev_close != 0:
+                    change = round((close - prev_close) / prev_close * 100, 2)
+                else:
+                    change = 0.0
+                sh_index_data[date_str[5:10].replace("/", "-")] = {"close": close, "change": change}
+                prev_close = close
+    except Exception as e:
+        print(f"获取上证指数数据失败: {e}")
+
     result = []
     today = datetime.now()
 
@@ -198,20 +224,67 @@ def get_emotion_history(days: int = 10) -> Dict:
             zt_count = len(stocks)
             emotion_score = lb_count * 0.5 + high_count * 1 + max_board * 2
 
+            date_key = date[4:6] + "-" + date[6:8]
+            sh_info = sh_index_data.get(date_key, {})
+
             result.append(
                 {
-                    "date": date[4:6] + "-" + date[6:8],
+                    "date": date_key,
                     "lbCount": lb_count,
                     "highCount": high_count,
                     "maxBoard": max_board,
                     "emotionScore": emotion_score,
                     "ztCount": zt_count,
+                    "shClose": sh_info.get("close"),
+                    "shChange": sh_info.get("change"),
                 }
             )
         except Exception as e:
             print(f"获取 {date} 数据失败: {e}")
 
     result.reverse()
+    return {"data": result}
+
+
+@app.get("/api/sh-index")
+def get_sh_index(days: int = 10) -> Dict:
+    """
+    获取上证指数历史数据
+    返回：每日上证指数涨跌幅数据
+    """
+    result = []
+
+    try:
+        # 使用新浪财经接口获取上证指数历史数据
+        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData"
+        params = {
+            "symbol": "sh000001",
+            "scale": 240,  # 日K
+            "ma": "no",
+            "datalen": days,
+        }
+        response = requests.get(url, params=params, timeout=5)
+        data = response.json()
+        if data:
+            prev_close = None
+            for item in data:
+                date_str = item.get("day", "")
+                close = float(item.get("close", 0))
+                if prev_close is not None and prev_close != 0:
+                    change = round((close - prev_close) / prev_close * 100, 2)
+                else:
+                    change = 0.0
+                result.append(
+                    {
+                        "date": date_str[5:10].replace("/", "-"),
+                        "close": close,
+                        "change": change,
+                    }
+                )
+                prev_close = close
+    except Exception as e:
+        print(f"获取上证指数数据失败: {e}")
+
     return {"data": result}
 
 
@@ -233,13 +306,10 @@ def ai_chat(request: ChatRequest) -> Dict:
             "https://coding-intl.dashscope.aliyuncs.com/v1/chat/completions",
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
+                "Authorization": f"Bearer {api_key}",
             },
-            json={
-                "model": "MiniMax",
-                "messages": request.messages
-            },
-            timeout=30
+            json={"model": "MiniMax", "messages": request.messages},
+            timeout=30,
         )
         return response.json()
     except Exception as e:

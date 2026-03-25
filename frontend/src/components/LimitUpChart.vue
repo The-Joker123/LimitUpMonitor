@@ -1,7 +1,11 @@
 <template>
   <div class="chart-section">
     <div class="chart-header">
-      <span>📈 情绪指数</span>
+      <svg class="chart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 3v18h18"/>
+        <path d="M18 9l-5 5-4-4-3 3"/>
+      </svg>
+      <span>情绪指数</span>
     </div>
     <div ref="chartRef" class="chart-container"></div>
   </div>
@@ -13,6 +17,10 @@ import * as echarts from 'echarts'
 
 const props = defineProps({
   data: {
+    type: Array,
+    default: () => []
+  },
+  shIndex: {
     type: Array,
     default: () => []
   }
@@ -29,7 +37,8 @@ const initChart = () => {
 }
 
 const updateChart = () => {
-  if (!chartInstance || !props.data.length) return
+  if (!chartInstance) return
+  if (!props.data.length && !props.shIndex.length) return
 
   const dates = props.data.map(d => d.date)
   const lbCount = props.data.map(d => d.lbCount)
@@ -37,6 +46,13 @@ const updateChart = () => {
   const maxBoard = props.data.map(d => d.maxBoard)
   const emotionScore = props.data.map(d => d.emotionScore)
   const ztCount = props.data.map(d => d.ztCount || 0)
+
+  // 上证指数收盘价，从 props.data 中直接获取
+  const shClose = props.data.map(d => d.shClose ?? null)
+  // 自动计算上证指数Y轴范围（数据范围 + 10% padding）
+  const shValues = shClose.filter(v => v !== null)
+  const shMin = shValues.length > 0 ? Math.floor(Math.min(...shValues) * 0.98) : 3500
+  const shMax = shValues.length > 0 ? Math.ceil(Math.max(...shValues) * 1.02) : 4500
 
   const option = {
     backgroundColor: 'transparent',
@@ -52,7 +68,9 @@ const updateChart = () => {
             '连板数': '#ff6b6b',
             '高标数': '#ffd93d',
             '最高板': '#6bcb77',
-            '情绪指数': '#4ecdc4'
+            '情绪指数': '#4ecdc4',
+            '涨停总数': '#a855f7',
+            '上证指数': '#3b82f6'
           }
           result += `<div style="display:flex;align-items:center;gap:8px;margin:4px 0;">
             <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colors[p.seriesName] || '#fff'};"></span>
@@ -63,7 +81,7 @@ const updateChart = () => {
       }
     },
     legend: {
-      data: ['连板数', '高标数', '最高板', '情绪指数', '涨停总数'],
+      data: ['连板数', '高标数', '最高板', '情绪指数', '涨停总数', '上证指数'],
       textStyle: { color: 'rgba(255,255,255,0.7)' },
       top: 10,
       itemGap: 20
@@ -84,6 +102,7 @@ const updateChart = () => {
       {
         type: 'value',
         name: '数量',
+        min: 0,
         axisLine: { show: false },
         axisLabel: { color: 'rgba(255,255,255,0.5)' },
         splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
@@ -91,6 +110,8 @@ const updateChart = () => {
       {
         type: 'value',
         name: '指数',
+        min: shMin,
+        max: shMax,
         axisLine: { show: false },
         axisLabel: { color: 'rgba(255,255,255,0.5)' },
         splitLine: { show: false }
@@ -142,7 +163,7 @@ const updateChart = () => {
       {
         name: '情绪指数',
         type: 'line',
-        yAxisIndex: 1,
+        yAxisIndex: 0,
         data: emotionScore,
         smooth: true,
         lineStyle: { color: '#4ecdc4', width: 3 },
@@ -163,6 +184,16 @@ const updateChart = () => {
         lineStyle: { color: '#a855f7', width: 2 },
         itemStyle: { color: '#a855f7' },
         emphasis: { focus: 'series' }
+      },
+      {
+        name: '上证指数',
+        type: 'line',
+        yAxisIndex: 1,
+        data: shClose,
+        smooth: true,
+        lineStyle: { color: '#3b82f6', width: 2 },
+        itemStyle: { color: '#3b82f6' },
+        emphasis: { focus: 'series' }
       }
     ]
   }
@@ -174,7 +205,9 @@ const handleResize = () => {
   chartInstance?.resize()
 }
 
-watch(() => props.data, updateChart, { deep: true })
+watch([() => props.data, () => props.shIndex], () => {
+  updateChart()
+}, { deep: true })
 
 onMounted(() => {
   initChart()
@@ -189,10 +222,10 @@ onUnmounted(() => {
 
 <style scoped>
 .chart-section {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px;
   margin-top: 20px;
 }
 
@@ -201,10 +234,19 @@ onUnmounted(() => {
   font-weight: 600;
   color: #fff;
   margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chart-icon {
+  width: 20px;
+  height: 20px;
+  color: #4ecdc4;
 }
 
 .chart-container {
   width: 100%;
-  height: 350px;
+  height: 320px;
 }
 </style>
