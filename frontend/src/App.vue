@@ -132,24 +132,14 @@ const boardData = computed(() => {
   stocks.value.forEach(s => {
     const industry = s.industry
     data.all.push({ industry, count: (data.all.find(x => x.industry === industry)?.count || 0) + 1 })
-    if (s.limit_up_days === 1) {
-      data[1].push({ industry, count: (data[1].find(x => x.industry === industry)?.count || 0) + 1 })
-    } else if (s.limit_up_days === 2) {
-      data[2].push({ industry, count: (data[2].find(x => x.industry === industry)?.count || 0) + 1 })
-    } else if (s.limit_up_days === 3) {
-      data[3].push({ industry, count: (data[3].find(x => x.industry === industry)?.count || 0) + 1 })
-    } else if (s.limit_up_days === 4) {
-      data[4].push({ industry, count: (data[4].find(x => x.industry === industry)?.count || 0) + 1 })
-    } else if (s.limit_up_days === 5) {
-      data[5].push({ industry, count: (data[5].find(x => x.industry === industry)?.count || 0) + 1 })
-    } else if (s.limit_up_days === 6) {
-      data[6].push({ industry, count: (data[6].find(x => x.industry === industry)?.count || 0) + 1 })
-    } else if (s.limit_up_days >= 7) {
-      data[7].push({ industry, count: (data[7].find(x => x.industry === industry)?.count || 0) + 1 })
+    const days = s.limit_up_days
+    const boardKey = days >= 7 ? 7 : days
+    if (data[boardKey]) {
+      data[boardKey].push({ industry, count: (data[boardKey].find(x => x.industry === industry)?.count || 0) + 1 })
     }
   })
-  
-  for (let key in data) {
+
+  for (const key in data) {
     const seen = new Set()
     data[key] = data[key].filter(x => {
       if (seen.has(x.industry)) return false
@@ -181,7 +171,7 @@ const fetchData = async () => {
     stocks.value = data.stocks
     currentTime.value = new Date().toLocaleTimeString('zh-CN')
   } catch (error) {
-    console.error('获取数据失败:', error)
+    // silently fail, UI will show empty state
   } finally {
     loading.value = false
   }
@@ -193,7 +183,7 @@ const fetchEmotionHistory = async () => {
     const result = await response.json()
     emotionData.value = result.data || []
   } catch (error) {
-    console.error('获取情绪数据失败:', error)
+    // silently fail, chart will show empty state
   }
 }
 

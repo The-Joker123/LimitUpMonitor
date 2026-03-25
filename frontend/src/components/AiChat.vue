@@ -78,8 +78,8 @@ const quickPrompts = computed(() => [
   { text: '哪些板块涨停最多', context: '统计各板块涨停数量，按数量排序' }
 ])
 
-const API_KEY = import.meta.env.VITE_CODING_PLAN_KEY || ''
-const BASE_URL = 'https://coding-intl.dashscope.aliyuncs.com/v1'
+const API_KEY = ''
+const BASE_URL = '/api'
 
 const formatContextData = () => {
   if (!props.stocks || props.stocks.length === 0) {
@@ -88,7 +88,7 @@ const formatContextData = () => {
 
   const totalCount = props.stocks.length
   const continuousStocks = props.stocks.filter(s => s.limit_up_days >= 2)
-  const maxContinuous = Math.max(...props.stocks.map(s => s.limit_up_days))
+  const maxContinuous = Math.max(...props.stocks.map(s => s.limit_up_days), 0)
 
   const industryStats = {}
   props.stocks.forEach(s => {
@@ -147,33 +147,30 @@ const sendMessage = async () => {
   scrollToBottom()
 
   try {
-    const response = await fetch(`${BASE_URL}/chat/completions`, {
+    const allMessages = [
+      { role: 'system', content: buildSystemPrompt() },
+      ...messages.value.map(m => ({ role: m.role, content: m.content }))
+    ]
+    const response = await fetch(`${BASE_URL}/ai-chat`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'MiniMax',
-        messages: [
-          { role: 'system', content: buildSystemPrompt() },
-          ...messages.value.map(m => ({ role: m.role, content: m.content }))
-        ],
-        stream: false
+        messages: allMessages
       })
     })
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`)
-    }
-
     const data = await response.json()
+    if (data.error) {
+      throw new Error(data.error)
+    }
     const assistantMsg = { role: 'assistant', content: data.choices[0].message.content }
     messages.value.push(assistantMsg)
   } catch (error) {
-    messages.value.push({ 
-      role: 'assistant', 
-      content: `请求失败: ${error.message}。请检查 API Key 是否配置正确。` 
+    messages.value.push({
+      role: 'assistant',
+      content: `请求失败: ${error.message}。请检查后端服务是否正常运行。`
     })
   } finally {
     loading.value = false

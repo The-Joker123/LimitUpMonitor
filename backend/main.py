@@ -5,9 +5,15 @@ A股涨停连板监控系统 V1 - 后端
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import akshare as ak
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
+from dotenv import load_dotenv
+import os
+import requests
+
+load_dotenv()
 
 app = FastAPI(title="A股涨停连板监控系统 V1")
 
@@ -105,7 +111,7 @@ def get_limit_up_stocks(date: Optional[str] = None) -> Dict:
         for _, row in df.iterrows():
             try:
                 limit_days = int(row.iloc[14]) if str(row.iloc[14]) != "-" else 1
-            except:
+            except Exception:
                 limit_days = 1
             industry = str(row.iloc[15]) if len(row) > 15 else ""
 
@@ -207,6 +213,37 @@ def get_emotion_history(days: int = 10) -> Dict:
 
     result.reverse()
     return {"data": result}
+
+
+class ChatRequest(BaseModel):
+    messages: list
+
+
+@app.post("/api/ai-chat")
+def ai_chat(request: ChatRequest) -> Dict:
+    """
+    代理AI聊天请求到阿里云百炼API，保护API密钥
+    """
+    api_key = os.getenv("DASHSCOPE_API_KEY")
+    if not api_key:
+        return {"error": "API key not configured"}
+
+    try:
+        response = requests.post(
+            "https://coding-intl.dashscope.aliyuncs.com/v1/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            },
+            json={
+                "model": "MiniMax",
+                "messages": request.messages
+            },
+            timeout=30
+        )
+        return response.json()
+    except Exception as e:
+        return {"error": str(e)}
 
 
 if __name__ == "__main__":
