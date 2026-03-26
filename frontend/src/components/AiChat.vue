@@ -1,22 +1,30 @@
 <template>
   <div class="ai-assistant">
     <div v-if="!isOpen" class="ai-btn" @click="isOpen = true">
-      <span class="ai-icon">🤖</span>
+      <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2M7.5 13A1.5 1.5 0 1 0 9 14.5 1.5 1.5 0 0 0 7.5 13m9 0a1.5 1.5 0 1 0 1.5 1.5 1.5 1.5 0 0 0-1.5-1.5"/>
+      </svg>
       <span class="ai-text">AI助手</span>
     </div>
 
     <div v-else class="ai-panel">
       <div class="ai-header">
         <div class="ai-title">
-          <span class="ai-icon">🤖</span>
+          <svg class="ai-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2"/>
+          </svg>
           <span>Coding Plan AI</span>
         </div>
-        <button class="close-btn" @click="isOpen = false">×</button>
+        <button class="close-btn" @click="isOpen = false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
 
       <div class="ai-messages" ref="messagesContainer">
         <div v-if="messages.length === 0" class="welcome-msg">
-          <p>👋 你好！我是 AI 助手</p>
+          <p>你好！我是 AI 助手</p>
           <p class="sub">基于阿里云百炼 Coding Plan，支持 Qwen3.5、GLM-5、MiniMax M2.5、Kimi K2.5</p>
           <div class="quick-prompts">
             <button v-for="prompt in quickPrompts" :key="prompt.text" @click="sendQuickPrompt(prompt.text)">
@@ -45,7 +53,9 @@
           @input="autoResize"
         ></textarea>
         <button class="send-btn" @click="sendMessage" :disabled="!inputText.trim() || loading">
-          发送
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
         </button>
       </div>
     </div>
@@ -197,8 +207,8 @@ const autoResize = (e) => {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 9999;
-  font-family: 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  z-index: 100;
+  font-family: 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .ai-btn {
@@ -216,11 +226,17 @@ const autoResize = (e) => {
 
 .ai-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.5);
 }
 
 .ai-icon {
-  font-size: 20px;
+  width: 22px;
+  height: 22px;
+}
+
+.ai-icon-small {
+  width: 18px;
+  height: 18px;
 }
 
 .ai-text {
@@ -231,12 +247,12 @@ const autoResize = (e) => {
 .ai-panel {
   width: 380px;
   height: 520px;
-  background: #1a1a2e;
+  background: #12122a;
   border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.08);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
   overflow: hidden;
 }
 
@@ -245,14 +261,14 @@ const autoResize = (e) => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: rgba(255,255,255,0.03);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .ai-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 15px;
   font-weight: 600;
   color: #fff;
@@ -263,17 +279,23 @@ const autoResize = (e) => {
   height: 28px;
   border-radius: 50%;
   border: none;
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-  font-size: 18px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.6);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .close-btn:hover {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255,71,87,0.3);
+  color: #fff;
 }
 
 .ai-messages {
@@ -284,7 +306,7 @@ const autoResize = (e) => {
 
 .welcome-msg {
   text-align: center;
-  padding: 24px 16px;
+  padding: 32px 16px;
   color: rgba(255,255,255,0.7);
 }
 
@@ -295,7 +317,7 @@ const autoResize = (e) => {
 .welcome-msg .sub {
   font-size: 12px;
   color: rgba(255,255,255,0.4);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .quick-prompts {
@@ -306,11 +328,11 @@ const autoResize = (e) => {
 }
 
 .quick-prompts button {
-  padding: 8px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(102,126,234,0.5);
-  background: rgba(102,126,234,0.1);
-  color: #667eea;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(102,126,234,0.4);
+  background: rgba(102,126,234,0.08);
+  color: #a5b4fc;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
@@ -324,6 +346,12 @@ const autoResize = (e) => {
 .message {
   margin-bottom: 12px;
   display: flex;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .message.user {
@@ -336,10 +364,10 @@ const autoResize = (e) => {
 
 .message-content {
   max-width: 85%;
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -351,53 +379,54 @@ const autoResize = (e) => {
 }
 
 .message.assistant .message-content {
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.9);
   border-bottom-left-radius: 4px;
 }
 
 .loading {
   display: flex;
   gap: 4px;
-  padding: 12px 16px;
+  padding: 14px 18px;
 }
 
 .loading .dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.5);
-  animation: bounce 1.4s infinite ease-in-out;
+  background: #667eea;
+  animation: pulse 1.4s infinite ease-in-out;
 }
 
 .loading .dot:nth-child(1) { animation-delay: 0s; }
 .loading .dot:nth-child(2) { animation-delay: 0.2s; }
 .loading .dot:nth-child(3) { animation-delay: 0.4s; }
 
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+@keyframes pulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
   40% { transform: scale(1); opacity: 1; }
 }
 
 .ai-input-area {
   display: flex;
   gap: 10px;
-  padding: 12px 16px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  background: rgba(255,255,255,0.02);
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.01);
 }
 
 .ai-input-area textarea {
   flex: 1;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.04);
   color: #fff;
   font-size: 14px;
   resize: none;
   outline: none;
   font-family: inherit;
+  transition: border-color 0.2s;
 }
 
 .ai-input-area textarea::placeholder {
@@ -409,19 +438,27 @@ const autoResize = (e) => {
 }
 
 .send-btn {
-  padding: 10px 18px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   border: none;
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: #fff;
-  font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s;
 }
 
+.send-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .send-btn:hover:not(:disabled) {
-  opacity: 0.9;
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(102,126,234,0.4);
 }
 
 .send-btn:disabled {
