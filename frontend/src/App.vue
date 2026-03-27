@@ -140,7 +140,7 @@
           <tbody>
             <tr v-for="stock in filteredStocks" :key="stock.code">
               <td class="code">{{ stock.code }}</td>
-              <td class="name">{{ stock.name }}</td>
+              <td class="name clickable" @click="showStockProfile(stock)">{{ stock.name }}</td>
               <td class="text-right" :class="getPctClass(stock.pct_chg)">
                 +{{ stock.pct_chg.toFixed(2) }}%
               </td>
@@ -166,6 +166,75 @@
     <LimitUpChart :data="emotionData" :shIndex="shIndexData" />
 
     <AiChat :stocks="stocks" :boardStats="currentBoardStats" />
+
+    <!-- 公司简介弹窗 -->
+    <div v-if="showProfile" class="profile-overlay" @click.self="showProfile = false">
+      <div class="profile-modal">
+        <div class="profile-header">
+          <div class="profile-title">
+            <span class="profile-name">{{ stockProfile.name || stockProfile.code }}</span>
+            <span v-if="stockProfile.shortName" class="profile-shortname">（{{ stockProfile.shortName }}）</span>
+          </div>
+          <button class="profile-close" @click="showProfile = false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="profile-content">
+          <div v-if="profileLoading" class="profile-loading">
+            <div class="loading-spinner"></div>
+            <span>加载中...</span>
+          </div>
+          <template v-else-if="stockProfile.error">
+            <div class="profile-error">暂无简介信息</div>
+          </template>
+          <template v-else>
+            <div class="profile-section">
+              <div class="profile-row">
+                <span class="profile-label">所属行业</span>
+                <span class="profile-value">{{ stockProfile.industry || '-' }}</span>
+              </div>
+              <div class="profile-row">
+                <span class="profile-label">上市日期</span>
+                <span class="profile-value">{{ stockProfile.listingDate || '-' }}</span>
+              </div>
+              <div class="profile-row">
+                <span class="profile-label">注册地址</span>
+                <span class="profile-value">{{ stockProfile.registeredAddr || '-' }}</span>
+              </div>
+              <div class="profile-row">
+                <span class="profile-label">办公地址</span>
+                <span class="profile-value">{{ stockProfile.officeAddr || '-' }}</span>
+              </div>
+              <div class="profile-row">
+                <span class="profile-label">联系电话</span>
+                <span class="profile-value">{{ stockProfile.phone || '-' }}</span>
+              </div>
+              <div class="profile-row">
+                <span class="profile-label">公司官网</span>
+                <span class="profile-value">
+                  <a v-if="stockProfile.website && stockProfile.website !== 'nan'" :href="stockProfile.website" target="_blank" class="profile-link">{{ stockProfile.website }}</a>
+                  <span v-else>-</span>
+                </span>
+              </div>
+            </div>
+            <div v-if="stockProfile.mainBusiness" class="profile-section">
+              <div class="profile-section-title">主营业务</div>
+              <div class="profile-text">{{ stockProfile.mainBusiness }}</div>
+            </div>
+            <div v-if="stockProfile.businessScope" class="profile-section">
+              <div class="profile-section-title">经营范围</div>
+              <div class="profile-text">{{ stockProfile.businessScope }}</div>
+            </div>
+            <div v-if="stockProfile.description" class="profile-section">
+              <div class="profile-section-title">公司介绍</div>
+              <div class="profile-text">{{ stockProfile.description }}</div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -187,6 +256,11 @@ const selectedIndustry = ref('')
 const sortField = ref('pct_chg')
 const sortOrder = ref('desc')
 let refreshTimer = null
+
+// 公司简介相关
+const showProfile = ref(false)
+const stockProfile = ref({})
+const profileLoading = ref(false)
 
 const continuousStocks = computed(() => stocks.value.filter(s => s.limit_up_days >= 2).length)
 const maxContinuous = computed(() => Math.max(...stocks.value.map(s => s.limit_up_days), 0))
@@ -275,6 +349,20 @@ const toggleIndustry = (industry) => {
     selectedIndustry.value = ''
   } else {
     selectedIndustry.value = industry
+  }
+}
+
+const showStockProfile = async (stock) => {
+  showProfile.value = true
+  stockProfile.value = {}
+  profileLoading.value = true
+  try {
+    const response = await fetch(`/api/stock/profile?code=${stock.code}`)
+    stockProfile.value = await response.json()
+  } catch (error) {
+    stockProfile.value = { error: '获取失败' }
+  } finally {
+    profileLoading.value = false
   }
 }
 
@@ -825,6 +913,170 @@ tr:hover td:last-child {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* 公司简介弹窗样式 */
+.profile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.profile-modal {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.profile-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.profile-shortname {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.profile-close {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.2s;
+}
+
+.profile-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.profile-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-content {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.profile-loading,
+.profile-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: rgba(255, 255, 255, 0.5);
+  gap: 12px;
+}
+
+.profile-section {
+  margin-bottom: 20px;
+}
+
+.profile-section:last-child {
+  margin-bottom: 0;
+}
+
+.profile-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.profile-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+}
+
+.profile-label {
+  width: 90px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.profile-value {
+  flex: 1;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  word-break: break-all;
+}
+
+.profile-link {
+  color: #4ecdc4;
+  text-decoration: none;
+}
+
+.profile-link:hover {
+  text-decoration: underline;
+}
+
+.profile-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.name.clickable {
+  cursor: pointer;
+  color: #4ecdc4;
+  transition: color 0.2s;
+}
+
+.name.clickable:hover {
+  color: #fff;
+  text-decoration: underline;
 }
 
 :deep(.el-button) {

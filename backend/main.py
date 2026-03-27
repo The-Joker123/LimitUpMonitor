@@ -316,6 +316,42 @@ def ai_chat(request: ChatRequest) -> Dict:
         return {"error": str(e)}
 
 
+@app.get("/api/stock/profile")
+def get_stock_profile(code: str) -> Dict:
+    """
+    获取股票公司简介（从巨潮资讯获取）
+    code: 股票代码，如 "000001"
+    """
+    try:
+        df = ak.stock_profile_cninfo(symbol=code)
+        if df is None or len(df) == 0:
+            return {"error": "未找到该股票信息"}
+
+        row = df.iloc[0]
+        # 提取关键字段
+        profile = {
+            "code": code,
+            "name": str(row.get("公司名称", "")),
+            "shortName": str(row.get("A股简称", "")),
+            "industry": str(row.get("所属行业", "")),
+            "legalRep": str(row.get("法人代表", "")),  # 法人代表
+            "registeredCapital": str(row.get("注册资金", "")),  # 注册资金
+            "establishDate": str(row.get("成立日期", "")),  # 成立日期
+            "listingDate": str(row.get("上市日期", "")),  # 上市日期
+            "website": str(row.get("官方网站", "")),
+            "phone": str(row.get("联系电话", "")),
+            "registeredAddr": str(row.get("注册地址", "")),
+            "officeAddr": str(row.get("办公地址", "")),
+            "mainBusiness": str(row.get("主营业务", "")),
+            "businessScope": str(row.get("经营范围", "")),
+            "description": str(row.get("机构简介", "")),
+        }
+        return profile
+    except Exception as e:
+        print(f"获取股票简介失败: {e}")
+        return {"error": str(e)}
+
+
 if __name__ == "__main__":
     import uvicorn
 
