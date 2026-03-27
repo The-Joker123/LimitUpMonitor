@@ -160,6 +160,10 @@
                 封单/成交
                 <span class="sort-icon" v-if="sortField === 'seal_ratio'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
               </th>
+              <th @click="sortBy('bomb_count')" class="sortable text-center">
+                炸板
+                <span class="sort-icon" v-if="sortField === 'bomb_count'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+              </th>
               <th>板块</th>
             </tr>
           </thead>
@@ -168,11 +172,11 @@
               <td class="code">{{ stock.code }}</td>
               <td class="name clickable" @click="showStockProfile(stock)">
                 <span class="candidate-flags">
-                  <span :class="stock.first_seal_time <= '1030' ? 'flag-pass' : 'flag-fail'" :title="'早盘封板(10:30前)'">{{ stock.first_seal_time <= '1030' ? '时' : '✕' }}</span>
-                  <span :class="stock.turnover_rate >= 5 && stock.turnover_rate <= 20 ? 'flag-pass' : 'flag-fail'" :title="'换手率5-20%'">{{ stock.turnover_rate >= 5 && stock.turnover_rate <= 20 ? '换' : '✕' }}</span>
-                  <span :class="stock.flow_market_cap >= 20 && stock.flow_market_cap <= 100 ? 'flag-pass' : 'flag-fail'" :title="'市值20-100亿'">{{ stock.flow_market_cap >= 20 && stock.flow_market_cap <= 100 ? '值' : '✕' }}</span>
-                  <span :class="(boardData.all?.[stock.industry] || 0) >= 2 ? 'flag-pass' : 'flag-fail'" :title="'板块涨停≥2'">{{ (boardData.all?.[stock.industry] || 0) >= 2 ? '板' : '✕' }}</span>
-                  <span :class="stock.bomb_count === 0 ? 'flag-pass' : 'flag-fail'" :title="'无炸板'">{{ stock.bomb_count === 0 ? '封' : '✕' }}</span>
+                  <span :class="stock.first_seal_time <= '1000' ? 'flag-pass' : 'flag-fail'" :title="'早盘封板(10:00前)'">{{ stock.first_seal_time <= '1000' ? '时' : '✕' }}</span>
+                  <span :class="stock.turnover_rate >= 5 && stock.turnover_rate <= 15 ? 'flag-pass' : 'flag-fail'" :title="'换手率5-15%'">{{ stock.turnover_rate >= 5 && stock.turnover_rate <= 15 ? '换' : '✕' }}</span>
+                  <span :class="stock.flow_market_cap >= 30 && stock.flow_market_cap <= 150 ? 'flag-pass' : 'flag-fail'" :title="'市值30-150亿'">{{ stock.flow_market_cap >= 30 && stock.flow_market_cap <= 150 ? '值' : '✕' }}</span>
+                  <span :class="(industryCountMap[stock.industry] || 0) >= 2 ? 'flag-pass' : 'flag-fail'" :title="'板块涨停≥2'">{{ (industryCountMap[stock.industry] || 0) >= 2 ? '板' : '✕' }}</span>
+                  <span :class="stock.bomb_count > 0 ? 'flag-bomb-back' : 'flag-pass'" :title="stock.bomb_count > 0 ? '炸板封回，强势' : '未炸板'">{{ stock.bomb_count > 0 ? '回' : '封' }}</span>
                 </span>
                 {{ stock.name }}
               </td>
@@ -187,7 +191,8 @@
               <td class="text-right turnover-rate">{{ stock.turnover_rate }}%</td>
               <td class="text-center seal-time" :class="getSealTimeClass(stock.first_seal_time)">{{ formatSealTime(stock.first_seal_time) }}</td>
               <td class="text-right market-cap">{{ formatMarketCap(stock.flow_market_cap) }}</td>
-              <td class="text-center" :class="getSealRatioClass(stock)" :title="'封单/成交 = 封板资金 ÷ 成交额\n' + getSealRatio(stock)">{{ getSealRatio(stock) }}</td>
+              <td class="text-center" :class="getSealRatioClass(stock)" :title="'封板资金: ' + (stock.seal_fund / 1e8).toFixed(2) + '亿\n成交额: ' + (stock.amount / 1e8).toFixed(2) + '亿'">{{ getSealRatio(stock) }}</td>
+              <td class="text-center" :class="stock.bomb_count > 0 ? 'bomb-warning' : ''" :title="stock.bomb_count > 0 ? '炸板' + stock.bomb_count + '次' : '未炸板'">{{ stock.bomb_count > 0 ? stock.bomb_count + '次' : '-' }}</td>
               <td class="industry">{{ stock.industry }}</td>
             </tr>
           </tbody>
@@ -379,27 +384,22 @@ const sortBy = (field) => {
 
 // 首板候选股筛选：早封板 + 高换手 + 板块强势 + 流通市值适中
 const candidateStocks = computed(() => {
-  const boardStats = boardData.value
   return stocksWithRatio.value.filter(stock => {
     // 只看首板
     if (stock.limit_up_days !== 1) return false
 
-    // 早盘封板（10:30前）
-    if (!stock.first_seal_time || stock.first_seal_time > '1030') return false
+    // 早盘封板（10:00前）
+    if (!stock.first_seal_time || stock.first_seal_time > '1000') return false
 
-    // 换手率 5-20%
-    if (stock.turnover_rate < 5 || stock.turnover_rate > 20) return false
+    // 换手率 5-15%
+    if (stock.turnover_rate < 5 || stock.turnover_rate > 15) return false
 
-    // 流通市值 20-100亿
-    if (stock.flow_market_cap < 20 || stock.flow_market_cap > 100) return false
+    // 流通市值 30-150亿
+    if (stock.flow_market_cap < 30 || stock.flow_market_cap > 150) return false
 
     // 板块内涨停 >= 2
-    const industry = stock.industry
-    const industryCount = boardStats.all?.[industry] || 0
+    const industryCount = industryCountMap[stock.industry] || 0
     if (industryCount < 2) return false
-
-    // 无炸板
-    if (stock.bomb_count > 0) return false
 
     return true
   })
@@ -411,12 +411,12 @@ const isCandidate = (stock) => {
 
 const getCandidateReason = (stock) => {
   const reasons = []
-  if (stock.first_seal_time && stock.first_seal_time <= '1030') reasons.push('早盘封板')
-  if (stock.turnover_rate >= 5 && stock.turnover_rate <= 20) reasons.push('换手率适中')
-  if (stock.flow_market_cap >= 20 && stock.flow_market_cap <= 100) reasons.push('市值适中')
-  if (stock.bomb_count === 0) reasons.push('未炸板')
-  const industryCount = boardData.value.all?.[stock.industry] || 0
+  if (stock.first_seal_time && stock.first_seal_time <= '1000') reasons.push('早盘封板')
+  if (stock.turnover_rate >= 5 && stock.turnover_rate <= 15) reasons.push('换手率适中')
+  if (stock.flow_market_cap >= 30 && stock.flow_market_cap <= 150) reasons.push('市值适中')
+  const industryCount = industryCountMap[stock.industry] || 0
   if (industryCount >= 2) reasons.push(`板块涨停${industryCount}只`)
+  if (stock.bomb_count > 0) reasons.push('炸板封回')
   return '候选原因：' + reasons.join(' + ')
 }
 
@@ -431,7 +431,13 @@ const getSealTimeClass = (time) => {
 const getSealRatio = (stock) => {
   if (!stock.amount || !stock.seal_fund) return '-'
   const ratio = stock.seal_fund / stock.amount
-  return (ratio * 100).toFixed(0) + '%'
+  const sealText = stock.seal_fund >= 1e8
+    ? (stock.seal_fund / 1e8).toFixed(1) + '亿'
+    : (stock.seal_fund / 1e4).toFixed(0) + '万'
+  const amountText = stock.amount >= 1e8
+    ? (stock.amount / 1e8).toFixed(1) + '亿'
+    : (stock.amount / 1e4).toFixed(0) + '万'
+  return `${sealText}/${amountText}=${(ratio * 100).toFixed(0)}%`
 }
 
 const getSealRatioClass = (stock) => {
@@ -458,6 +464,15 @@ const stocksWithRatio = computed(() => {
     ...s,
     seal_ratio: s.amount && s.seal_fund ? s.seal_fund / s.amount : 0
   }))
+})
+
+// 板块涨停数量映射
+const industryCountMap = computed(() => {
+  const map = {}
+  boardData.value.all?.forEach(item => {
+    map[item.industry] = item.count
+  })
+  return map
 })
 
 const getPctClass = (pct) => {
@@ -1083,6 +1098,11 @@ tr:hover td:last-child {
   color: rgba(255,255,255,0.5);
 }
 
+.bomb-warning {
+  color: #ff4757;
+  font-weight: 700;
+}
+
 .turnover-rate {
   color: #00ff88;
   font-weight: 600;
@@ -1307,6 +1327,12 @@ tr:hover td:last-child {
   background: rgba(0, 255, 136, 0.2);
   color: #00ff88;
   border: 1px solid rgba(0, 255, 136, 0.4);
+}
+
+.flag-bomb-back {
+  background: rgba(255, 215, 0, 0.2);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.4);
 }
 
 .flag-fail {
