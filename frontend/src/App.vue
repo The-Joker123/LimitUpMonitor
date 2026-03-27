@@ -111,6 +111,16 @@
             class="search-input"
             placeholder="搜索股票代码/名称..."
           />
+          <button
+            :class="['filter-btn', { active: showCandidatesOnly }]"
+            @click="showCandidatesOnly = !showCandidatesOnly"
+            :title="showCandidatesOnly ? '显示全部' : '只看首板候选股'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            {{ showCandidatesOnly ? '候选股' : '首板候选' }}
+          </button>
           <span class="stock-count">共 {{ filteredStocks.length }} 只</span>
         </div>
       </div>
@@ -134,21 +144,50 @@
                 连板
                 <span class="sort-icon" v-if="sortField === 'limit_up_days'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
               </th>
+              <th @click="sortBy('turnover_rate')" class="sortable text-right">
+                换手率
+                <span class="sort-icon" v-if="sortField === 'turnover_rate'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+              </th>
+              <th @click="sortBy('first_seal_time')" class="sortable text-center">
+                封板时间
+                <span class="sort-icon" v-if="sortField === 'first_seal_time'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+              </th>
+              <th @click="sortBy('flow_market_cap')" class="sortable text-right">
+                流通市值
+                <span class="sort-icon" v-if="sortField === 'flow_market_cap'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+              </th>
+              <th @click="sortBy('seal_ratio')" class="sortable text-center">
+                封单/成交
+                <span class="sort-icon" v-if="sortField === 'seal_ratio'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+              </th>
               <th>板块</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="stock in filteredStocks" :key="stock.code">
               <td class="code">{{ stock.code }}</td>
-              <td class="name clickable" @click="showStockProfile(stock)">{{ stock.name }}</td>
+              <td class="name clickable" @click="showStockProfile(stock)">
+                <span class="candidate-flags">
+                  <span :class="stock.first_seal_time <= '1030' ? 'flag-pass' : 'flag-fail'" :title="'早盘封板(10:30前)'">{{ stock.first_seal_time <= '1030' ? '时' : '✕' }}</span>
+                  <span :class="stock.turnover_rate >= 5 && stock.turnover_rate <= 20 ? 'flag-pass' : 'flag-fail'" :title="'换手率5-20%'">{{ stock.turnover_rate >= 5 && stock.turnover_rate <= 20 ? '换' : '✕' }}</span>
+                  <span :class="stock.flow_market_cap >= 20 && stock.flow_market_cap <= 100 ? 'flag-pass' : 'flag-fail'" :title="'市值20-100亿'">{{ stock.flow_market_cap >= 20 && stock.flow_market_cap <= 100 ? '值' : '✕' }}</span>
+                  <span :class="(boardData.all?.[stock.industry] || 0) >= 2 ? 'flag-pass' : 'flag-fail'" :title="'板块涨停≥2'">{{ (boardData.all?.[stock.industry] || 0) >= 2 ? '板' : '✕' }}</span>
+                  <span :class="stock.bomb_count === 0 ? 'flag-pass' : 'flag-fail'" :title="'无炸板'">{{ stock.bomb_count === 0 ? '封' : '✕' }}</span>
+                </span>
+                {{ stock.name }}
+              </td>
               <td class="text-right" :class="getPctClass(stock.pct_chg)">
                 +{{ stock.pct_chg.toFixed(2) }}%
               </td>
               <td class="text-center">
                 <span v-if="stock.limit_up_days >= 3" class="board-fire">{{ stock.limit_up_days }}</span>
-                <span v-else-if="stock.limit_up_days >= 2" class="board-hot">2</span>
+                <span v-else-if="stock.limit_up_days >= 2" class="board-hot">{{ stock.limit_up_days }}</span>
                 <span v-else class="board-normal">{{ stock.limit_up_days }}</span>
               </td>
+              <td class="text-right turnover-rate">{{ stock.turnover_rate }}%</td>
+              <td class="text-center seal-time" :class="getSealTimeClass(stock.first_seal_time)">{{ formatSealTime(stock.first_seal_time) }}</td>
+              <td class="text-right market-cap">{{ formatMarketCap(stock.flow_market_cap) }}</td>
+              <td class="text-center" :class="getSealRatioClass(stock)" :title="'封单/成交 = 封板资金 ÷ 成交额\n' + getSealRatio(stock)">{{ getSealRatio(stock) }}</td>
               <td class="industry">{{ stock.industry }}</td>
             </tr>
           </tbody>
@@ -255,6 +294,7 @@ const searchQuery = ref('')
 const selectedIndustry = ref('')
 const sortField = ref('pct_chg')
 const sortOrder = ref('desc')
+const showCandidatesOnly = ref(false)
 let refreshTimer = null
 
 // 公司简介相关
@@ -303,7 +343,7 @@ const boardTabs = computed(() => {
 const currentBoardStats = computed(() => boardData.value[activeTab.value] || [])
 
 const filteredStocks = computed(() => {
-  let result = stocks.value
+  let result = showCandidatesOnly.value ? candidateStocks.value : stocksWithRatio.value
   if (selectedIndustry.value) {
     result = result.filter(s => s.industry === selectedIndustry.value)
   }
@@ -336,6 +376,89 @@ const sortBy = (field) => {
     sortOrder.value = 'desc'
   }
 }
+
+// 首板候选股筛选：早封板 + 高换手 + 板块强势 + 流通市值适中
+const candidateStocks = computed(() => {
+  const boardStats = boardData.value
+  return stocksWithRatio.value.filter(stock => {
+    // 只看首板
+    if (stock.limit_up_days !== 1) return false
+
+    // 早盘封板（10:30前）
+    if (!stock.first_seal_time || stock.first_seal_time > '1030') return false
+
+    // 换手率 5-20%
+    if (stock.turnover_rate < 5 || stock.turnover_rate > 20) return false
+
+    // 流通市值 20-100亿
+    if (stock.flow_market_cap < 20 || stock.flow_market_cap > 100) return false
+
+    // 板块内涨停 >= 2
+    const industry = stock.industry
+    const industryCount = boardStats.all?.[industry] || 0
+    if (industryCount < 2) return false
+
+    // 无炸板
+    if (stock.bomb_count > 0) return false
+
+    return true
+  })
+})
+
+const isCandidate = (stock) => {
+  return candidateStocks.value.some(c => c.code === stock.code)
+}
+
+const getCandidateReason = (stock) => {
+  const reasons = []
+  if (stock.first_seal_time && stock.first_seal_time <= '1030') reasons.push('早盘封板')
+  if (stock.turnover_rate >= 5 && stock.turnover_rate <= 20) reasons.push('换手率适中')
+  if (stock.flow_market_cap >= 20 && stock.flow_market_cap <= 100) reasons.push('市值适中')
+  if (stock.bomb_count === 0) reasons.push('未炸板')
+  const industryCount = boardData.value.all?.[stock.industry] || 0
+  if (industryCount >= 2) reasons.push(`板块涨停${industryCount}只`)
+  return '候选原因：' + reasons.join(' + ')
+}
+
+const getSealTimeClass = (time) => {
+  if (!time) return ''
+  if (time <= '0930') return 'seal-early'  // 早板
+  if (time <= '1000') return 'seal-good'   // 午前板
+  if (time <= '1030') return 'seal-ok'     // 勉强
+  return 'seal-late'                        // 午后板
+}
+
+const getSealRatio = (stock) => {
+  if (!stock.amount || !stock.seal_fund) return '-'
+  const ratio = stock.seal_fund / stock.amount
+  return (ratio * 100).toFixed(0) + '%'
+}
+
+const getSealRatioClass = (stock) => {
+  if (!stock.amount || !stock.seal_fund) return ''
+  const ratio = stock.seal_fund / stock.amount
+  if (ratio >= 0.3) return 'ratio-strong'
+  if (ratio >= 0.15) return 'ratio-medium'
+  return 'ratio-weak'
+}
+
+const formatMarketCap = (cap) => {
+  if (!cap) return '-'
+  return cap.toFixed(0) + '亿'
+}
+
+const formatSealTime = (time) => {
+  if (!time || time.length !== 6) return time || '-'
+  return time.slice(0, 2) + ':' + time.slice(2, 4) + ':' + time.slice(4, 6)
+}
+
+// 计算封单/成交比率（用于排序）
+const stocksWithRatio = computed(() => {
+  return stocks.value.map(s => ({
+    ...s,
+    seal_ratio: s.amount && s.seal_fund ? s.seal_fund / s.amount : 0
+  }))
+})
 
 const getPctClass = (pct) => {
   if (pct >= 10) return 'pct-gold'
@@ -755,6 +878,36 @@ onUnmounted(() => {
   border-color: rgba(255,127,80,0.5);
 }
 
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,215,0,0.3);
+  background: rgba(255,215,0,0.08);
+  color: rgba(255,215,0,0.8);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.filter-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.filter-btn:hover {
+  background: rgba(255,215,0,0.15);
+  border-color: rgba(255,215,0,0.5);
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, #ff4757, #ff7f50);
+  color: #fff;
+  border-color: transparent;
+}
+
 .stock-count {
   font-size: 13px;
   color: rgba(255,255,255,0.4);
@@ -808,7 +961,7 @@ th.sortable:hover {
 
 td {
   padding: 14px 16px;
-  font-size: 14px;
+  font-size: 15px;
   border-bottom: 1px solid rgba(255,255,255,0.03);
 }
 
@@ -889,6 +1042,55 @@ tr:hover td:last-child {
 .industry {
   color: rgba(255,255,255,0.5);
   font-size: 13px;
+}
+
+.seal-time {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.seal-early {
+  color: #00ff88;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.seal-good {
+  color: #00ff88;
+}
+
+.seal-ok {
+  color: #ffd700;
+  font-weight: 600;
+}
+
+.seal-late {
+  color: rgba(255,255,255,0.5);
+}
+
+.ratio-strong {
+  color: #00ff88;
+  font-weight: 700;
+}
+
+.ratio-medium {
+  color: #ffd700;
+  font-weight: 600;
+}
+
+.ratio-weak {
+  color: rgba(255,255,255,0.5);
+}
+
+.turnover-rate {
+  color: #00ff88;
+  font-weight: 600;
+}
+
+.market-cap {
+  color: #00ff88;
+  font-weight: 600;
 }
 
 .loading-state,
@@ -1077,6 +1279,40 @@ tr:hover td:last-child {
 .name.clickable:hover {
   color: #fff;
   text-decoration: underline;
+}
+
+.candidate-star {
+  margin-right: 4px;
+  cursor: help;
+}
+
+.candidate-flags {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: 6px;
+}
+
+.candidate-flags span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.flag-pass {
+  background: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.4);
+}
+
+.flag-fail {
+  background: rgba(255, 71, 87, 0.15);
+  color: #ff4757;
+  border: 1px solid rgba(255, 71, 87, 0.3);
 }
 
 :deep(.el-button) {
