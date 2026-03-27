@@ -222,7 +222,7 @@ def get_emotion_history(days: int = 10) -> Dict:
             high_count = len([s for s in stocks if s["limit_up_days"] >= 3])
             max_board = max([s["limit_up_days"] for s in stocks], default=0)
             zt_count = len(stocks)
-            emotion_score = lb_count * 0.5 + high_count * 1 + max_board * 2
+            emotion_score = lb_count * 0.3 + high_count * 0.5 + pow(max_board, 2) * 2
 
             date_key = date[4:6] + "-" + date[6:8]
             sh_info = sh_index_data.get(date_key, {})
