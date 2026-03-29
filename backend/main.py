@@ -123,13 +123,27 @@ def get_limit_up_stocks(date: Optional[str] = None) -> Dict:
                     "limit_up_days": limit_days,
                     "industry": industry,
                     # 扩展字段
-                    "turnover_rate": round(float(row.iloc[8]), 2) if row.iloc[8] != '-' else 0,  # 换手率
-                    "seal_fund": int(row.iloc[9]) if str(row.iloc[9]) != '-' else 0,  # 封板资金
-                    "first_seal_time": str(row.iloc[10]) if str(row.iloc[10]) != '-' else '',  # 首次封板时间
-                    "last_seal_time": str(row.iloc[11]) if str(row.iloc[11]) != '-' else '',  # 最后封板时间
-                    "amount": int(row.iloc[5]) if str(row.iloc[5]) != '-' else 0,  # 成交额
-                    "flow_market_cap": round(float(row.iloc[6]) / 1e8, 2) if str(row.iloc[6]) != '-' else 0,  # 流通市值(亿)
-                    "bomb_count": int(row.iloc[12]) if str(row.iloc[12]) != '-' else 0,  # 炸板次数
+                    "turnover_rate": round(float(row.iloc[8]), 2)
+                    if row.iloc[8] != "-"
+                    else 0,  # 换手率
+                    "seal_fund": int(row.iloc[9])
+                    if str(row.iloc[9]) != "-"
+                    else 0,  # 封板资金
+                    "first_seal_time": str(row.iloc[10])
+                    if str(row.iloc[10]) != "-"
+                    else "",  # 首次封板时间
+                    "last_seal_time": str(row.iloc[11])
+                    if str(row.iloc[11]) != "-"
+                    else "",  # 最后封板时间
+                    "amount": int(row.iloc[5])
+                    if str(row.iloc[5]) != "-"
+                    else 0,  # 成交额
+                    "flow_market_cap": round(float(row.iloc[6]) / 1e8, 2)
+                    if str(row.iloc[6]) != "-"
+                    else 0,  # 流通市值(亿)
+                    "bomb_count": int(row.iloc[12])
+                    if str(row.iloc[12]) != "-"
+                    else 0,  # 炸板次数
                 }
             )
 
@@ -202,7 +216,10 @@ def get_emotion_history(days: int = 10) -> Dict:
                     change = round((close - prev_close) / prev_close * 100, 2)
                 else:
                     change = 0.0
-                sh_index_data[date_str[5:10].replace("/", "-")] = {"close": close, "change": change}
+                sh_index_data[date_str[5:10].replace("/", "-")] = {
+                    "close": close,
+                    "change": change,
+                }
                 prev_close = close
     except Exception as e:
         print(f"获取上证指数数据失败: {e}")
@@ -362,5 +379,11 @@ def get_stock_profile(code: str) -> Dict:
 
 if __name__ == "__main__":
     import uvicorn
+    import json
+    from pathlib import Path
 
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    config_path = Path(__file__).parent.parent / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    backend_config = config["backend"]
+
+    uvicorn.run(app, host=backend_config["host"], port=backend_config["port"])

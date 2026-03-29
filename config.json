@@ -1,0 +1,11 @@
+{
+  "backend": {
+    "host": "0.0.0.0",
+    "port": 8001
+  },
+  "frontend": {
+    "host": "0.0.0.0",
+    "port": 5173,
+    "proxyPort": 8001
+  }
+}
