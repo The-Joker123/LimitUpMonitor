@@ -96,10 +96,11 @@ def group_industry(industry: str) -> str:
 
 
 @app.get("/api/limit-up")
-def get_limit_up_stocks(date: Optional[str] = None) -> Dict:
+def get_limit_up_stocks(date: Optional[str] = None, time_range: str = "all") -> Dict:
     """
     获取东方财富涨停池数据（akshare）
     date: 可选，格式YYYYMMDD，不传则默认今天
+    time_range: 可选，"all" 或 "morning"，morning 表示 9:15-10:30 时段
     返回：涨停股列表 + 板块连板统计
     """
     try:
@@ -115,6 +116,8 @@ def get_limit_up_stocks(date: Optional[str] = None) -> Dict:
                 limit_days = 1
             industry = str(row.iloc[15]) if len(row) > 15 else ""
 
+            first_seal_time = str(row.iloc[10]) if str(row.iloc[10]) != '-' else ''
+
             stocks.append(
                 {
                     "code": str(row.iloc[1]),
@@ -125,13 +128,17 @@ def get_limit_up_stocks(date: Optional[str] = None) -> Dict:
                     # 扩展字段
                     "turnover_rate": round(float(row.iloc[8]), 2) if row.iloc[8] != '-' else 0,  # 换手率
                     "seal_fund": int(row.iloc[9]) if str(row.iloc[9]) != '-' else 0,  # 封板资金
-                    "first_seal_time": str(row.iloc[10]) if str(row.iloc[10]) != '-' else '',  # 首次封板时间
+                    "first_seal_time": first_seal_time,  # 首次封板时间
                     "last_seal_time": str(row.iloc[11]) if str(row.iloc[11]) != '-' else '',  # 最后封板时间
                     "amount": int(row.iloc[5]) if str(row.iloc[5]) != '-' else 0,  # 成交额
                     "flow_market_cap": round(float(row.iloc[6]) / 1e8, 2) if str(row.iloc[6]) != '-' else 0,  # 流通市值(亿)
                     "bomb_count": int(row.iloc[12]) if str(row.iloc[12]) != '-' else 0,  # 炸板次数
                 }
             )
+
+        # 时段过滤
+        if time_range == "morning":
+            stocks = [s for s in stocks if s["first_seal_time"] >= "0915" and s["first_seal_time"] <= "1030"]
 
         # 从stocks列表计算板块统计
         industry_count = {}  # 全部
@@ -175,10 +182,11 @@ def health_check():
 
 
 @app.get("/api/emotion-history")
-def get_emotion_history(days: int = 10) -> Dict:
+def get_emotion_history(days: int = 10, time_range: str = "all") -> Dict:
     """
     获取情绪指数历史数据
     days: 获取最近多少天的数据，默认10天
+    time_range: 可选，"all" 或 "morning"，morning 表示 9:15-10:30 时段
     返回：每日情绪指数数据（含上证指数）
     """
     # 获取上证指数数据
@@ -224,7 +232,12 @@ def get_emotion_history(days: int = 10) -> Dict:
                     limit_days = int(row.iloc[14]) if str(row.iloc[14]) != "-" else 1
                 except:
                     limit_days = 1
-                stocks.append({"limit_up_days": limit_days})
+                first_seal_time = str(row.iloc[10]) if str(row.iloc[10]) != '-' else ''
+                stocks.append({"limit_up_days": limit_days, "first_seal_time": first_seal_time})
+
+            # 时段过滤
+            if time_range == "morning":
+                stocks = [s for s in stocks if s["first_seal_time"] >= "0915" and s["first_seal_time"] <= "1030"]
 
             lb_count = len([s for s in stocks if s["limit_up_days"] >= 2])
             high_count = len([s for s in stocks if s["limit_up_days"] >= 3])

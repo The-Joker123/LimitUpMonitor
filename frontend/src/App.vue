@@ -21,6 +21,12 @@
           :clearable="false"
           @change="fetchData"
         />
+        <el-switch
+          v-model="morningOnly"
+          active-text="早盘"
+          inactive-text="全部"
+          @change="onMorningOnlyChange"
+        />
         <span class="update-time" v-if="currentTime">更新于 {{ currentTime }}</span>
         <el-button type="primary" @click="fetchData" :loading="loading" plain>
           <el-icon><Refresh /></el-icon>
@@ -300,6 +306,7 @@ const selectedIndustry = ref('')
 const sortField = ref('pct_chg')
 const sortOrder = ref('desc')
 const showCandidatesOnly = ref(false)
+const morningOnly = ref(false)
 let refreshTimer = null
 
 // 公司简介相关
@@ -507,7 +514,7 @@ const showStockProfile = async (stock) => {
 const fetchData = async () => {
   try {
     loading.value = true
-    const url = `/api/limit-up?date=${selectedDate.value}`
+    const url = `/api/limit-up?date=${selectedDate.value}&time_range=${morningOnly.value ? 'morning' : 'all'}`
     const response = await fetch(url)
     const data = await response.json()
     stocks.value = data.stocks
@@ -519,9 +526,14 @@ const fetchData = async () => {
   }
 }
 
+const onMorningOnlyChange = () => {
+  fetchData()
+  fetchEmotionHistory()
+}
+
 const fetchEmotionHistory = async () => {
   try {
-    const response = await fetch('/api/emotion-history?days=20')
+    const response = await fetch(`/api/emotion-history?days=20&time_range=${morningOnly.value ? 'morning' : 'all'}`)
     const result = await response.json()
     emotionData.value = result.data || []
   } catch (error) {
