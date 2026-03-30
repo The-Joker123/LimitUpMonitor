@@ -289,7 +289,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
@@ -308,6 +308,11 @@ const sortOrder = ref('desc')
 const showCandidatesOnly = ref(false)
 const morningOnly = ref(false)
 let refreshTimer = null
+
+// 板块筛选变化时刷新情绪曲线
+watch(selectedIndustry, () => {
+  fetchEmotionHistory()
+})
 
 // 公司简介相关
 const showProfile = ref(false)
@@ -533,7 +538,8 @@ const onMorningOnlyChange = () => {
 
 const fetchEmotionHistory = async () => {
   try {
-    const response = await fetch(`/api/emotion-history?days=20&time_range=${morningOnly.value ? 'morning' : 'all'}`)
+    const industryParam = selectedIndustry.value ? `&industry=${encodeURIComponent(selectedIndustry.value)}` : ''
+    const response = await fetch(`/api/emotion-history?days=20&time_range=${morningOnly.value ? 'morning' : 'all'}${industryParam}`)
     const result = await response.json()
     emotionData.value = result.data || []
   } catch (error) {

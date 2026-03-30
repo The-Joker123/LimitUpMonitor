@@ -182,11 +182,12 @@ def health_check():
 
 
 @app.get("/api/emotion-history")
-def get_emotion_history(days: int = 10, time_range: str = "all") -> Dict:
+def get_emotion_history(days: int = 10, time_range: str = "all", industry: Optional[str] = None) -> Dict:
     """
     获取情绪指数历史数据
     days: 获取最近多少天的数据，默认10天
     time_range: 可选，"all" 或 "morning"，morning 表示 9:15-10:30 时段
+    industry: 可选，板块名称过滤
     返回：每日情绪指数数据（含上证指数）
     """
     # 获取上证指数数据
@@ -233,11 +234,16 @@ def get_emotion_history(days: int = 10, time_range: str = "all") -> Dict:
                 except:
                     limit_days = 1
                 first_seal_time = str(row.iloc[10]) if str(row.iloc[10]) != '-' else ''
-                stocks.append({"limit_up_days": limit_days, "first_seal_time": first_seal_time})
+                ind = str(row.iloc[15]) if len(row) > 15 else ''
+                stocks.append({"limit_up_days": limit_days, "first_seal_time": first_seal_time, "industry": ind})
 
             # 时段过滤
             if time_range == "morning":
                 stocks = [s for s in stocks if s["first_seal_time"] >= "0915" and s["first_seal_time"] <= "1030"]
+
+            # 板块过滤
+            if industry:
+                stocks = [s for s in stocks if s["industry"] == industry]
 
             lb_count = len([s for s in stocks if s["limit_up_days"] >= 2])
             high_count = len([s for s in stocks if s["limit_up_days"] >= 3])
