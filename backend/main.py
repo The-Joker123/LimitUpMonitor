@@ -353,20 +353,34 @@ class ChatRequest(BaseModel):
 @app.post("/api/ai-chat")
 def ai_chat(request: ChatRequest) -> Dict:
     """
-    代理AI聊天请求到阿里云百炼API，保护API密钥
+    代理AI聊天请求到 MiniMax Coding Plan API
     """
-    api_key = os.getenv("DASHSCOPE_API_KEY")
+    api_key = os.getenv("MINIMAX_API_KEY")
+    group_id = os.getenv("MINIMAX_GROUP_ID")
     if not api_key:
-        return {"error": "API key not configured"}
+        return {"error": "MINIMAX_API_KEY 未配置，请在 .env 文件中设置"}
+    if not group_id:
+        return {"error": "MINIMAX_GROUP_ID 未配置，请在 .env 文件中设置"}
 
     try:
         response = requests.post(
-            "https://coding-intl.dashscope.aliyuncs.com/v1/chat/completions",
+            "https://api.minimax.chat/v1/text/chatcompletion_pro",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
             },
-            json={"model": "MiniMax", "messages": request.messages},
+            json={
+                "group_id": group_id,
+                "model": "MiniMax-Text-01",
+                "messages": request.messages,
+                "reply_constraints": {"sender_type": "BOT", "receiver_type": "USER"},
+                "bot_setting": [
+                    {
+                        "bot_name": "AI助手",
+                        "content": "你是一个有用的AI助手，请用中文回答用户问题。",
+                    }
+                ],
+            },
             timeout=30,
         )
         return response.json()
@@ -454,118 +468,6 @@ def get_twitter_trending(woeid: int = 1) -> Dict:
         return {"error": str(e), "trends": []}
 
 
-import time
-
-_trending_cache = {"data": None, "timestamp": 0, "location": ""}
-_CACHE_DURATION = 300  # 5分钟缓存
-
-
-@app.get("/api/x-trending")
-def get_x_trending_scrape(location: str = "") -> Dict:
-    """
-    获取X热门话题
-    通过trends24.in获取数据（该网站聚合X热点话题）
-    5分钟缓存，避免频繁请求
-    """
-    global _trending_cache
-
-    current_time = time.time()
-    cache_key = location or "global"
-
-    # 检查缓存是否有效
-    if (
-        _trending_cache["data"]
-        and _trending_cache["location"] == cache_key
-        and current_time - _trending_cache["timestamp"] < _CACHE_DURATION
-    ):
-        return _trending_cache["data"]
-
-    try:
-        from playwright.sync_api import sync_playwright
-
-        proxy = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
-
-        if location:
-            url = f"https://trends24.in/{location}/"
-            location_name = location.replace("-", " ").title()
-        else:
-            url = "https://trends24.in/"
-            location_name = "全球"
-
-        with sync_playwright() as p:
-            browser_args = ["--no-sandbox"]
-            if proxy:
-                browser_args.append(f"--proxy-server={proxy}")
-
-            browser = p.chromium.launch(headless=True, args=browser_args)
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            )
-            page = context.new_page()
-
-            page.goto(url, timeout=30000, wait_until="networkidle")
-            page.wait_for_timeout(3000)
-
-            trends = []
-
-            # Get trend links
-            trend_links = page.query_selector_all('a[href*="/trend/"]')
-            for link in trend_links[:20]:
-                text = link.inner_text().strip()
-                if text:
-                    trend_text = text.split("\n")[0].strip()
-                    if trend_text and len(trend_text) > 1:
-                        trends.append({"name": trend_text, "tweet_volume": 0})
-
-            # Fallback: get from meta description
-            if not trends:
-                desc = page.evaluate(
-                    "document.querySelector('meta[name=description]').content"
-                )
-                if "Worldwide:" in desc:
-                    trends_text = desc.split("Worldwide:")[1].split(".")[0]
-                elif "top X" in desc:
-                    trends_text = desc.split("top X")[1].split(".")[0]
-                else:
-                    trends_text = ""
-                for t in trends_text.split(","):
-                    t = t.strip()
-                    if t:
-                        trends.append({"name": t, "tweet_volume": 0})
-
-            browser.close()
-
-            result = {
-                "trends": trends[:20],
-                "location": location_name,
-                "source": "trends24.in",
-                "cached": False,
-            }
-
-            if trends:
-                _trending_cache = {
-                    "data": result,
-                    "timestamp": current_time,
-                    "location": cache_key,
-                }
-                return result
-            else:
-                return {
-                    "error": "未获取到热点话题",
-                    "trends": [],
-                    "source": "trends24.in",
-                }
-
-    except ImportError:
-        return {
-            "error": "Playwright not installed",
-            "trends": [],
-            "source": "trends24.in",
-        }
-    except Exception as e:
-        return {"error": str(e), "trends": [], "source": "trends24.in"}
-
-
 @app.get("/api/stock/profile")
 def get_stock_profile(code: str) -> Dict:
     """
@@ -599,6 +501,27 @@ def get_stock_profile(code: str) -> Dict:
         return profile
     except Exception as e:
         print(f"获取股票简介失败: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/translate")
+def translate_text(text: str, from_lang: str = "en", to_lang: str = "zh") -> Dict:
+    """
+    翻译文本（使用 MyMemory 免费翻译API）
+    """
+    try:
+        lang_pair = f"{from_lang}|{to_lang}"
+        url = "https://api.mymemory.translated.net/get"
+        params = {"q": text, "langpair": lang_pair}
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        if data.get("responseStatus") == 200:
+            return {
+                "translation": data.get("responseData", {}).get("translatedText", text)
+            }
+        else:
+            return {"error": data.get("responseDetails", "翻译失败")}
+    except Exception as e:
         return {"error": str(e)}
 
 

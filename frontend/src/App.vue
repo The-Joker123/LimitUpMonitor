@@ -39,17 +39,17 @@
         涨停监控
       </button>
       <button
-        :class="['nav-tab', { active: currentView === 'twitter' }]"
-        @click="currentView = 'twitter'"
+        :class="['nav-tab', { active: currentView === 'hacker' }]"
+        @click="currentView = 'hacker'"
       >
         <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
         </svg>
-        X热点
+        HN热点
       </button>
     </nav>
 
-    <TwitterTrending v-if="currentView === 'twitter'" />
+    <HackerNews v-if="currentView === 'hacker'" />
 
     <div v-if="currentView === 'limit-up'">
       <div class="summary-cards">
@@ -320,7 +320,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
-import TwitterTrending from './components/TwitterTrending.vue'
+import HackerNews from './components/HackerNews.vue'
 
 const currentView = ref('limit-up')
 const stocks = ref([])
