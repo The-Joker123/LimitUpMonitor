@@ -116,7 +116,7 @@ def get_limit_up_stocks(date: Optional[str] = None, time_range: str = "all") -> 
                 limit_days = 1
             industry = str(row.iloc[15]) if len(row) > 15 else ""
 
-            first_seal_time = str(row.iloc[10]) if str(row.iloc[10]) != '-' else ''
+            first_seal_time = str(row.iloc[10]) if str(row.iloc[10]) != "-" else ""
 
             stocks.append(
                 {
@@ -126,19 +126,35 @@ def get_limit_up_stocks(date: Optional[str] = None, time_range: str = "all") -> 
                     "limit_up_days": limit_days,
                     "industry": industry,
                     # 扩展字段
-                    "turnover_rate": round(float(row.iloc[8]), 2) if row.iloc[8] != '-' else 0,  # 换手率
-                    "seal_fund": int(row.iloc[9]) if str(row.iloc[9]) != '-' else 0,  # 封板资金
+                    "turnover_rate": round(float(row.iloc[8]), 2)
+                    if row.iloc[8] != "-"
+                    else 0,  # 换手率
+                    "seal_fund": int(row.iloc[9])
+                    if str(row.iloc[9]) != "-"
+                    else 0,  # 封板资金
                     "first_seal_time": first_seal_time,  # 首次封板时间
-                    "last_seal_time": str(row.iloc[11]) if str(row.iloc[11]) != '-' else '',  # 最后封板时间
-                    "amount": int(row.iloc[5]) if str(row.iloc[5]) != '-' else 0,  # 成交额
-                    "flow_market_cap": round(float(row.iloc[6]) / 1e8, 2) if str(row.iloc[6]) != '-' else 0,  # 流通市值(亿)
-                    "bomb_count": int(row.iloc[12]) if str(row.iloc[12]) != '-' else 0,  # 炸板次数
+                    "last_seal_time": str(row.iloc[11])
+                    if str(row.iloc[11]) != "-"
+                    else "",  # 最后封板时间
+                    "amount": int(row.iloc[5])
+                    if str(row.iloc[5]) != "-"
+                    else 0,  # 成交额
+                    "flow_market_cap": round(float(row.iloc[6]) / 1e8, 2)
+                    if str(row.iloc[6]) != "-"
+                    else 0,  # 流通市值(亿)
+                    "bomb_count": int(row.iloc[12])
+                    if str(row.iloc[12]) != "-"
+                    else 0,  # 炸板次数
                 }
             )
 
         # 时段过滤
         if time_range == "morning":
-            stocks = [s for s in stocks if s["first_seal_time"] >= "0915" and s["first_seal_time"] <= "1030"]
+            stocks = [
+                s
+                for s in stocks
+                if s["first_seal_time"] >= "0915" and s["first_seal_time"] <= "1030"
+            ]
 
         # 从stocks列表计算板块统计
         industry_count = {}  # 全部
@@ -182,7 +198,9 @@ def health_check():
 
 
 @app.get("/api/emotion-history")
-def get_emotion_history(days: int = 10, time_range: str = "all", industry: Optional[str] = None) -> Dict:
+def get_emotion_history(
+    days: int = 10, time_range: str = "all", industry: Optional[str] = None
+) -> Dict:
     """
     获取情绪指数历史数据
     days: 获取最近多少天的数据，默认10天
@@ -211,7 +229,10 @@ def get_emotion_history(days: int = 10, time_range: str = "all", industry: Optio
                     change = round((close - prev_close) / prev_close * 100, 2)
                 else:
                     change = 0.0
-                sh_index_data[date_str[5:10].replace("/", "-")] = {"close": close, "change": change}
+                sh_index_data[date_str[5:10].replace("/", "-")] = {
+                    "close": close,
+                    "change": change,
+                }
                 prev_close = close
     except Exception as e:
         print(f"获取上证指数数据失败: {e}")
@@ -233,13 +254,23 @@ def get_emotion_history(days: int = 10, time_range: str = "all", industry: Optio
                     limit_days = int(row.iloc[14]) if str(row.iloc[14]) != "-" else 1
                 except:
                     limit_days = 1
-                first_seal_time = str(row.iloc[10]) if str(row.iloc[10]) != '-' else ''
-                ind = str(row.iloc[15]) if len(row) > 15 else ''
-                stocks.append({"limit_up_days": limit_days, "first_seal_time": first_seal_time, "industry": ind})
+                first_seal_time = str(row.iloc[10]) if str(row.iloc[10]) != "-" else ""
+                ind = str(row.iloc[15]) if len(row) > 15 else ""
+                stocks.append(
+                    {
+                        "limit_up_days": limit_days,
+                        "first_seal_time": first_seal_time,
+                        "industry": ind,
+                    }
+                )
 
             # 时段过滤
             if time_range == "morning":
-                stocks = [s for s in stocks if s["first_seal_time"] >= "0915" and s["first_seal_time"] <= "1030"]
+                stocks = [
+                    s
+                    for s in stocks
+                    if s["first_seal_time"] >= "0915" and s["first_seal_time"] <= "1030"
+                ]
 
             # 板块过滤
             if industry:
@@ -341,6 +372,198 @@ def ai_chat(request: ChatRequest) -> Dict:
         return response.json()
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/api/twitter/trending")
+def get_twitter_trending(woeid: int = 1) -> Dict:
+    """
+    获取Twitter热门话题趋势
+    woeid: 地区ID，默认1是全球，其他常用值：23424977(中国)、24591127(纽约)等
+    """
+    proxy = (
+        os.getenv("HTTP_PROXY")
+        or os.getenv("http_proxy")
+        or os.getenv("HTTPS_PROXY")
+        or os.getenv("https_proxy")
+    )
+    proxies = {"http": proxy, "https": proxy} if proxy else None
+
+    bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
+
+    if not bearer_token:
+        api_key = os.getenv("TWITTER_API_KEY")
+        api_secret = os.getenv("TWITTER_API_SECRET")
+        if not api_key or not api_secret:
+            return {"error": "Twitter API key not configured", "trends": []}
+        try:
+            import base64
+
+            credentials = base64.b64encode(f"{api_key}:{api_secret}".encode()).decode()
+            token_response = requests.post(
+                "https://api.twitter.com/oauth2/token",
+                headers={
+                    "Authorization": f"Basic {credentials}",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                data={"grant_type": "client_credentials"},
+                timeout=10,
+                proxies=proxies,
+            )
+            if token_response.status_code != 200:
+                return {
+                    "error": f"Failed to get bearer token: {token_response.text}",
+                    "trends": [],
+                }
+            bearer_token = token_response.json().get("access_token")
+        except Exception as e:
+            return {"error": str(e), "trends": []}
+
+    try:
+        trends_url = f"https://api.twitter.com/1.1/trends/place.json?id={woeid}"
+        trends_response = requests.get(
+            trends_url,
+            headers={"Authorization": f"Bearer {bearer_token}"},
+            timeout=10,
+            proxies=proxies,
+        )
+
+        if trends_response.status_code != 200:
+            return {
+                "error": f"Failed to get trends: {trends_response.text}",
+                "trends": [],
+            }
+
+        data = trends_response.json()
+        if data and len(data) > 0:
+            trends = data[0].get("trends", [])
+            return {
+                "location": data[0].get("name", "Unknown"),
+                "trends": [
+                    {
+                        "name": t["name"],
+                        "url": t.get("url", ""),
+                        "tweet_volume": t.get("tweet_volume", 0),
+                    }
+                    for t in trends[:20]
+                ],
+            }
+        return {"trends": []}
+
+    except Exception as e:
+        print(f"获取Twitter趋势失败: {e}")
+        return {"error": str(e), "trends": []}
+
+
+import time
+
+_trending_cache = {"data": None, "timestamp": 0, "location": ""}
+_CACHE_DURATION = 300  # 5分钟缓存
+
+
+@app.get("/api/x-trending")
+def get_x_trending_scrape(location: str = "") -> Dict:
+    """
+    获取X热门话题
+    通过trends24.in获取数据（该网站聚合X热点话题）
+    5分钟缓存，避免频繁请求
+    """
+    global _trending_cache
+
+    current_time = time.time()
+    cache_key = location or "global"
+
+    # 检查缓存是否有效
+    if (
+        _trending_cache["data"]
+        and _trending_cache["location"] == cache_key
+        and current_time - _trending_cache["timestamp"] < _CACHE_DURATION
+    ):
+        return _trending_cache["data"]
+
+    try:
+        from playwright.sync_api import sync_playwright
+
+        proxy = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
+
+        if location:
+            url = f"https://trends24.in/{location}/"
+            location_name = location.replace("-", " ").title()
+        else:
+            url = "https://trends24.in/"
+            location_name = "全球"
+
+        with sync_playwright() as p:
+            browser_args = ["--no-sandbox"]
+            if proxy:
+                browser_args.append(f"--proxy-server={proxy}")
+
+            browser = p.chromium.launch(headless=True, args=browser_args)
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            )
+            page = context.new_page()
+
+            page.goto(url, timeout=30000, wait_until="networkidle")
+            page.wait_for_timeout(3000)
+
+            trends = []
+
+            # Get trend links
+            trend_links = page.query_selector_all('a[href*="/trend/"]')
+            for link in trend_links[:20]:
+                text = link.inner_text().strip()
+                if text:
+                    trend_text = text.split("\n")[0].strip()
+                    if trend_text and len(trend_text) > 1:
+                        trends.append({"name": trend_text, "tweet_volume": 0})
+
+            # Fallback: get from meta description
+            if not trends:
+                desc = page.evaluate(
+                    "document.querySelector('meta[name=description]').content"
+                )
+                if "Worldwide:" in desc:
+                    trends_text = desc.split("Worldwide:")[1].split(".")[0]
+                elif "top X" in desc:
+                    trends_text = desc.split("top X")[1].split(".")[0]
+                else:
+                    trends_text = ""
+                for t in trends_text.split(","):
+                    t = t.strip()
+                    if t:
+                        trends.append({"name": t, "tweet_volume": 0})
+
+            browser.close()
+
+            result = {
+                "trends": trends[:20],
+                "location": location_name,
+                "source": "trends24.in",
+                "cached": False,
+            }
+
+            if trends:
+                _trending_cache = {
+                    "data": result,
+                    "timestamp": current_time,
+                    "location": cache_key,
+                }
+                return result
+            else:
+                return {
+                    "error": "未获取到热点话题",
+                    "trends": [],
+                    "source": "trends24.in",
+                }
+
+    except ImportError:
+        return {
+            "error": "Playwright not installed",
+            "trends": [],
+            "source": "trends24.in",
+        }
+    except Exception as e:
+        return {"error": str(e), "trends": [], "source": "trends24.in"}
 
 
 @app.get("/api/stock/profile")
