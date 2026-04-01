@@ -28,7 +28,31 @@
       </div>
     </div>
 
-    <div class="summary-cards">
+    <nav class="main-nav">
+      <button
+        :class="['nav-tab', { active: currentView === 'limit-up' }]"
+        @click="currentView = 'limit-up'"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        涨停监控
+      </button>
+      <button
+        :class="['nav-tab', { active: currentView === 'twitter' }]"
+        @click="currentView = 'twitter'"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+        X热点
+      </button>
+    </nav>
+
+    <TwitterTrending v-if="currentView === 'twitter'" />
+
+    <div v-if="currentView === 'limit-up'">
+      <div class="summary-cards">
       <div class="summary-card red">
         <div class="card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -63,6 +87,14 @@
     <div class="board-stats">
       <div class="board-header">
         <span class="board-title">板块统计</span>
+        <div class="board-controls">
+          <el-switch
+            v-model="morningOnly"
+            active-text="早盘"
+            inactive-text="全部"
+            @change="onMorningOnlyChange"
+          />
+        </div>
         <div class="board-tabs">
           <button
             v-for="tab in boardTabs"
@@ -279,15 +311,18 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
+import TwitterTrending from './components/TwitterTrending.vue'
 
+const currentView = ref('limit-up')
 const stocks = ref([])
 const loading = ref(false)
 const currentTime = ref('')
@@ -300,7 +335,13 @@ const selectedIndustry = ref('')
 const sortField = ref('pct_chg')
 const sortOrder = ref('desc')
 const showCandidatesOnly = ref(false)
+const morningOnly = ref(false)
 let refreshTimer = null
+
+// 板块筛选变化时刷新情绪曲线
+watch(selectedIndustry, () => {
+  fetchEmotionHistory()
+})
 
 // 公司简介相关
 const showProfile = ref(false)
@@ -507,7 +548,7 @@ const showStockProfile = async (stock) => {
 const fetchData = async () => {
   try {
     loading.value = true
-    const url = `/api/limit-up?date=${selectedDate.value}`
+    const url = `/api/limit-up?date=${selectedDate.value}&time_range=${morningOnly.value ? 'morning' : 'all'}`
     const response = await fetch(url)
     const data = await response.json()
     stocks.value = data.stocks
@@ -519,9 +560,15 @@ const fetchData = async () => {
   }
 }
 
+const onMorningOnlyChange = () => {
+  fetchData()
+  fetchEmotionHistory()
+}
+
 const fetchEmotionHistory = async () => {
   try {
-    const response = await fetch('/api/emotion-history?days=20')
+    const industryParam = selectedIndustry.value ? `&industry=${encodeURIComponent(selectedIndustry.value)}` : ''
+    const response = await fetch(`/api/emotion-history?days=20&time_range=${morningOnly.value ? 'morning' : 'all'}${industryParam}`)
     const result = await response.json()
     emotionData.value = result.data || []
   } catch (error) {
@@ -741,6 +788,12 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: #fff;
+}
+
+.board-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .board-tabs {
@@ -1343,6 +1396,42 @@ tr:hover td:last-child {
 
 :deep(.el-button) {
   font-weight: 500;
+}
+
+.main-nav {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #606266;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-tab svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-tab:hover {
+  color: #409eff;
+}
+
+.nav-tab.active {
+  color: #409eff;
+  border-bottom-color: #409eff;
 }
 
 @media (max-width: 768px) {
