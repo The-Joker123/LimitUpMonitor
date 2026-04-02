@@ -321,26 +321,51 @@ import { Refresh } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
 import HackerNews from './components/HackerNews.vue'
+import { useStockData } from './composables/useStockData'
+import { useStockFilters } from './composables/useStockFilters'
 
 const currentView = ref('limit-up')
-const stocks = ref([])
-const loading = ref(false)
-const currentTime = ref('')
 const activeTab = ref('all')
-const selectedDate = ref(new Date().toISOString().slice(0, 10).replace(/-/g, ''))
-const emotionData = ref([])
-const shIndexData = ref([])
 const searchQuery = ref('')
-const selectedIndustry = ref('')
-const sortField = ref('pct_chg')
-const sortOrder = ref('desc')
-const showCandidatesOnly = ref(false)
-const morningOnly = ref(false)
-let refreshTimer = null
+
+// 使用 composables
+const {
+  stocks,
+  loading,
+  currentTime,
+  emotionData,
+  shIndexData,
+  selectedDate,
+  morningOnly,
+  fetchData,
+  fetchEmotionHistory,
+  fetchShIndex,
+  onMorningOnlyChange,
+  startAutoRefresh,
+  stopAutoRefresh,
+} = useStockData()
+
+const {
+  selectedIndustry,
+  sortField,
+  sortOrder,
+  showCandidatesOnly,
+  boardData,
+  boardTabs,
+  industryCountMap,
+  filteredStocks,
+  sortBy,
+  toggleIndustry,
+} = useStockFilters(stocks)
+
+// 同步的 computed
+const continuousStocks = computed(() => stocks.value.filter(s => s.limit_up_days >= 2).length)
+const maxContinuous = computed(() => Math.max(...stocks.value.map(s => s.limit_up_days), 0))
+const currentBoardStats = computed(() => boardData.value[activeTab.value] || [])
 
 // 板块筛选变化时刷新情绪曲线
 watch(selectedIndustry, () => {
-  fetchEmotionHistory()
+  fetchEmotionHistory(selectedIndustry.value)
 })
 
 // 公司简介相关
@@ -348,125 +373,27 @@ const showProfile = ref(false)
 const stockProfile = ref({})
 const profileLoading = ref(false)
 
-const continuousStocks = computed(() => stocks.value.filter(s => s.limit_up_days >= 2).length)
-const maxContinuous = computed(() => Math.max(...stocks.value.map(s => s.limit_up_days), 0))
-
-const boardData = computed(() => {
-  const data = { all: {} }
-  const maxDays = Math.max(...stocks.value.map(s => s.limit_up_days), 0)
-  for (let i = 1; i <= maxDays; i++) {
-    data[i] = {}
-  }
-  stocks.value.forEach(s => {
-    const industry = s.industry
-    data.all[industry] = (data.all[industry] || 0) + 1
-    const days = s.limit_up_days
-    if (data[days]) {
-      data[days][industry] = (data[days][industry] || 0) + 1
-    }
-  })
-
-  for (const key in data) {
-    const entries = Object.entries(data[key])
-      .map(([industry, count]) => ({ industry, count }))
-      .sort((a, b) => b.count - a.count)
-    data[key] = entries
-  }
-  return data
-})
-
-const boardTabs = computed(() => {
-  const tabs = [{ key: 'all', label: '全部' }]
-  const keys = Object.keys(boardData.value).filter(k => k !== 'all').map(Number).sort((a, b) => a - b)
-  for (const key of keys) {
-    if (boardData.value[key] && boardData.value[key].length > 0) {
-      tabs.push({ key: String(key), label: `${key}板` })
-    }
-  }
-  return tabs
-})
-
-const currentBoardStats = computed(() => boardData.value[activeTab.value] || [])
-
-const filteredStocks = computed(() => {
-  let result = showCandidatesOnly.value ? candidateStocks.value : stocksWithRatio.value
-  if (selectedIndustry.value) {
-    result = result.filter(s => s.industry === selectedIndustry.value)
-  }
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(s =>
-      s.code.toLowerCase().includes(query) ||
-      s.name.toLowerCase().includes(query) ||
-      s.industry.toLowerCase().includes(query)
-    )
-  }
-  result = [...result].sort((a, b) => {
-    const aVal = a[sortField.value]
-    const bVal = b[sortField.value]
-    if (typeof aVal === 'string') {
-      return sortOrder.value === 'asc'
-        ? aVal.localeCompare(bVal)
-        : bVal.localeCompare(aVal)
-    }
-    return sortOrder.value === 'asc' ? aVal - bVal : bVal - aVal
-  })
-  return result
-})
-
-const sortBy = (field) => {
-  if (sortField.value === field) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortField.value = field
-    sortOrder.value = 'desc'
+const showStockProfile = async (stock) => {
+  showProfile.value = true
+  stockProfile.value = {}
+  profileLoading.value = true
+  try {
+    const response = await fetch(`/api/stock/profile?code=${stock.code}`)
+    stockProfile.value = await response.json()
+  } catch (error) {
+    stockProfile.value = { error: '获取失败' }
+  } finally {
+    profileLoading.value = false
   }
 }
 
-// 首板候选股筛选：早封板 + 高换手 + 板块强势 + 流通市值适中
-const candidateStocks = computed(() => {
-  return stocksWithRatio.value.filter(stock => {
-    // 只看首板
-    if (stock.limit_up_days !== 1) return false
-
-    // 早盘封板（10:00前）
-    if (!stock.first_seal_time || stock.first_seal_time > '1000') return false
-
-    // 换手率 5-15%
-    if (stock.turnover_rate < 5 || stock.turnover_rate > 15) return false
-
-    // 流通市值 30-150亿
-    if (stock.flow_market_cap < 30 || stock.flow_market_cap > 150) return false
-
-    // 板块内涨停 >= 2
-    const industryCount = industryCountMap[stock.industry] || 0
-    if (industryCount < 2) return false
-
-    return true
-  })
-})
-
-const isCandidate = (stock) => {
-  return candidateStocks.value.some(c => c.code === stock.code)
-}
-
-const getCandidateReason = (stock) => {
-  const reasons = []
-  if (stock.first_seal_time && stock.first_seal_time <= '1000') reasons.push('早盘封板')
-  if (stock.turnover_rate >= 5 && stock.turnover_rate <= 15) reasons.push('换手率适中')
-  if (stock.flow_market_cap >= 30 && stock.flow_market_cap <= 150) reasons.push('市值适中')
-  const industryCount = industryCountMap[stock.industry] || 0
-  if (industryCount >= 2) reasons.push(`板块涨停${industryCount}只`)
-  if (stock.bomb_count > 0) reasons.push('炸板封回')
-  return '候选原因：' + reasons.join(' + ')
-}
-
+// 格式化函数
 const getSealTimeClass = (time) => {
   if (!time) return ''
-  if (time <= '0930') return 'seal-early'  // 早板
-  if (time <= '1000') return 'seal-good'   // 午前板
-  if (time <= '1030') return 'seal-ok'     // 勉强
-  return 'seal-late'                        // 午后板
+  if (time <= '0930') return 'seal-early'
+  if (time <= '1000') return 'seal-good'
+  if (time <= '1030') return 'seal-ok'
+  return 'seal-late'
 }
 
 const getSealRatio = (stock) => {
@@ -499,23 +426,6 @@ const formatSealTime = (time) => {
   return time.slice(0, 2) + ':' + time.slice(2, 4) + ':' + time.slice(4, 6)
 }
 
-// 计算封单/成交比率（用于排序）
-const stocksWithRatio = computed(() => {
-  return stocks.value.map(s => ({
-    ...s,
-    seal_ratio: s.amount && s.seal_fund ? s.seal_fund / s.amount : 0
-  }))
-})
-
-// 板块涨停数量映射
-const industryCountMap = computed(() => {
-  const map = {}
-  boardData.value.all?.forEach(item => {
-    map[item.industry] = item.count
-  })
-  return map
-})
-
 const getPctClass = (pct) => {
   if (pct >= 10) return 'pct-gold'
   if (pct >= 9.8) return 'pct-red'
@@ -523,78 +433,15 @@ const getPctClass = (pct) => {
   return 'pct-yellow'
 }
 
-const toggleIndustry = (industry) => {
-  if (selectedIndustry.value === industry) {
-    selectedIndustry.value = ''
-  } else {
-    selectedIndustry.value = industry
-  }
-}
-
-const showStockProfile = async (stock) => {
-  showProfile.value = true
-  stockProfile.value = {}
-  profileLoading.value = true
-  try {
-    const response = await fetch(`/api/stock/profile?code=${stock.code}`)
-    stockProfile.value = await response.json()
-  } catch (error) {
-    stockProfile.value = { error: '获取失败' }
-  } finally {
-    profileLoading.value = false
-  }
-}
-
-const fetchData = async () => {
-  try {
-    loading.value = true
-    const url = `/api/limit-up?date=${selectedDate.value}&time_range=${morningOnly.value ? 'morning' : 'all'}`
-    const response = await fetch(url)
-    const data = await response.json()
-    stocks.value = data.stocks
-    currentTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch (error) {
-    // silently fail, UI will show empty state
-  } finally {
-    loading.value = false
-  }
-}
-
-const onMorningOnlyChange = () => {
-  fetchData()
-  fetchEmotionHistory()
-}
-
-const fetchEmotionHistory = async () => {
-  try {
-    const industryParam = selectedIndustry.value ? `&industry=${encodeURIComponent(selectedIndustry.value)}` : ''
-    const response = await fetch(`/api/emotion-history?days=20&time_range=${morningOnly.value ? 'morning' : 'all'}${industryParam}`)
-    const result = await response.json()
-    emotionData.value = result.data || []
-  } catch (error) {
-    // silently fail, chart will show empty state
-  }
-}
-
-const fetchShIndex = async () => {
-  try {
-    const response = await fetch('/api/sh-index?days=20')
-    const result = await response.json()
-    shIndexData.value = result.data || []
-  } catch (error) {
-    // silently fail, chart will show empty state
-  }
-}
-
 onMounted(() => {
   fetchData()
   fetchEmotionHistory()
   fetchShIndex()
-  refreshTimer = setInterval(fetchData, 10000)
+  startAutoRefresh()
 })
 
 onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
+  stopAutoRefresh()
 })
 </script>
 
