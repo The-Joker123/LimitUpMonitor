@@ -1,57 +1,72 @@
 <template>
   <div class="dashboard">
-    <div class="header">
-      <div class="header-content">
-        <h1 class="title">
-          <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-          </svg>
-          涨停连板监控
-        </h1>
-        <p class="subtitle">实时数据 · 东方财富/akshare</p>
-      </div>
-      <div class="header-actions">
-        <el-date-picker
-          v-model="selectedDate"
-          type="date"
-          placeholder="选择日期"
-          format="YYYY-MM-DD"
-          value-format="YYYYMMDD"
-          size="small"
-          :clearable="false"
-          @change="fetchData"
-        />
-        <span class="update-time" v-if="currentTime">更新于 {{ currentTime }}</span>
-        <el-button type="primary" @click="fetchData" :loading="loading" plain>
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-      </div>
-    </div>
-
-    <nav class="main-nav">
-      <button
-        :class="['nav-tab', { active: currentView === 'limit-up' }]"
-        @click="currentView = 'limit-up'"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
         </svg>
-        涨停监控
-      </button>
-      <button
-        :class="['nav-tab', { active: currentView === 'hacker' }]"
-        @click="currentView = 'hacker'"
-      >
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
-        HN热点
-      </button>
+        <div class="brand-text">
+          <span class="brand-title">鹰</span>
+          <span class="brand-subtitle">实时数据 · 东方财富/akshare</span>
+        </div>
+      </div>
+
+      <div class="navbar-tabs">
+        <button
+          :class="['tab-item', { active: currentView === 'limit-up' }]"
+          @click="currentView = 'limit-up'"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+          短线精灵
+        </button>
+        <button
+          :class="['tab-item', { active: currentView === 'hacker' }]"
+          @click="currentView = 'hacker'"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          HN热点
+        </button>
+      </div>
     </nav>
 
     <HackerNews v-if="currentView === 'hacker'" />
 
     <div v-if="currentView === 'limit-up'">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <el-date-picker
+            v-model="selectedDate"
+            type="date"
+            placeholder="选择日期"
+            format="YYYY-MM-DD"
+            value-format="YYYYMMDD"
+            size="small"
+            :clearable="false"
+            @change="fetchData"
+          />
+          <div class="period-switch">
+            <button
+              :class="['period-btn', { active: !morningOnly }]"
+              @click="morningOnly = false; onMorningOnlyChange()"
+            >全部</button>
+            <button
+              :class="['period-btn', { active: morningOnly }]"
+              @click="morningOnly = true; onMorningOnlyChange()"
+            >早盘</button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <span class="update-time" v-if="currentTime">更新于 {{ currentTime }}</span>
+          <el-button type="primary" @click="fetchData" :loading="loading" plain size="small">
+            <el-icon><Refresh /></el-icon>
+          </el-button>
+        </div>
+      </div>
+
       <div class="summary-cards">
       <div class="summary-card red">
         <div class="card-icon">
@@ -87,14 +102,6 @@
     <div class="board-stats">
       <div class="board-header">
         <span class="board-title">板块统计</span>
-        <div class="board-controls">
-          <el-switch
-            v-model="morningOnly"
-            active-text="早盘"
-            inactive-text="全部"
-            @change="onMorningOnlyChange"
-          />
-        </div>
         <div class="board-tabs">
           <button
             v-for="tab in boardTabs"
@@ -456,65 +463,122 @@ onUnmounted(() => {
   min-height: 100vh;
   background: linear-gradient(135deg, #0a0a1a 0%, #0f1029 50%, #0a0a1a 100%);
   padding: 20px;
-  font-family: 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
 
-.header {
+.navbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 24px 28px;
-  background: rgba(255,255,255,0.02);
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, rgba(20, 20, 40, 0.95), rgba(30, 30, 60, 0.9));
   border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   margin-bottom: 20px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #fff;
+.navbar-brand {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.title-icon {
-  width: 26px;
-  height: 26px;
+.brand-icon {
+  width: 32px;
+  height: 32px;
   color: #ffd700;
-  filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.4));
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
 }
 
-.subtitle {
-  font-size: 13px;
-  color: rgba(255,255,255,0.4);
-  margin-top: 4px;
+.brand-text {
+  display: flex;
+  flex-direction: column;
 }
 
-.header-actions {
+.brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.brand-subtitle {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 2px;
+}
+
+.navbar-tabs {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.tab-item {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tab-item svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tab-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tab-item.active {
+  background: linear-gradient(135deg, #ff4757, #ff6b81);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(255, 71, 87, 0.4);
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .update-time {
-  font-size: 12px;
-  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: 0.3px;
+}
+
+.toolbar-right :deep(.el-button) {
   padding: 6px 12px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 20px;
+  border-radius: 8px;
 }
 
 :deep(.el-date-picker) {
-  background: rgba(255,255,255,0.05);
-  border-color: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 :deep(.el-input__wrapper) {
-  background: rgba(255,255,255,0.05);
-  border-color: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
   box-shadow: none;
 }
 
@@ -523,7 +587,64 @@ onUnmounted(() => {
 }
 
 :deep(.el-input__prefix) {
-  color: rgba(255,255,255,0.5);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 16px;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.toolbar-left :deep(.el-date-editor) {
+  width: 130px;
+}
+
+.period-switch {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.period-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.period-btn:hover {
+  color: #fff;
+}
+
+.period-btn.active {
+  background: linear-gradient(135deg, #ff4757, #ff6b81);
+  color: #fff;
+}
+
+.update-time {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .summary-cards {
@@ -1245,46 +1366,27 @@ tr:hover td:last-child {
   font-weight: 500;
 }
 
-.main-nav {
-  display: flex;
-  gap: 8px;
-  padding: 0 20px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.nav-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: #606266;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.nav-tab svg {
-  width: 18px;
-  height: 18px;
-}
-
-.nav-tab:hover {
-  color: #409eff;
-}
-
-.nav-tab.active {
-  color: #409eff;
-  border-bottom-color: #409eff;
-}
-
 @media (max-width: 768px) {
-  .header {
+  .navbar {
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .navbar-tabs {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    width: 100%;
+    justify-content: center;
   }
 
   .summary-cards {

@@ -130,16 +130,16 @@ ${limitUpStocks.join('\n')}
 
 const buildSystemPrompt = () => {
   const contextData = formatContextData()
-  return `你是一个专业的金融助手，专门帮助用户分析股票涨停数据。
+  return `你是一位专业的中文金融顾问，专注于分析A股涨停数据。
 
-【重要】用户当前正在查看一个"涨停连板监控"页面，页面上的数据如下：
+【当前页面数据】
 ${contextData}
 
-请基于以上数据回答用户的问题。如果用户问的是分析类问题，请结合数据给出专业的分析意见。
-回答要求：
-1. 简洁专业，用中文回答
-2. 如需引用数据，请从上述数据中提取
-3. 如果数据不足或无法回答，请说明情况`.trim()
+【回答规范】
+1. 简洁专业，结论先行
+2. 如需引用数据，请从上述数据中提取关键信息
+3. 数据不足时，明确告知用户
+4. 涉及投资建议时，提醒风险`.trim()
 }
 
 const sendQuickPrompt = (prompt) => {
@@ -158,8 +158,8 @@ const sendMessage = async () => {
 
   try {
     const allMessages = [
-      { role: 'system', content: buildSystemPrompt() },
-      ...messages.value.map(m => ({ role: m.role, content: m.content }))
+      { role: 'system', content: buildSystemPrompt(), sender_name: '用户', sender_type: 'USER' },
+      ...messages.value.map(m => ({ role: m.role, content: m.content, sender_name: m.role === 'user' ? '用户' : 'AI助手', sender_type: m.role === 'user' ? 'USER' : 'BOT' }))
     ]
     const response = await fetch(`${BASE_URL}/ai-chat`, {
       method: 'POST',

@@ -172,14 +172,13 @@ const explainWithAI = async (item) => {
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: `请用中文简洁解释以下 Hacker News 文章（50字以内）：
+          content: `你是一位科技资讯评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注（上榜）。
 
-标题：${item.title}
-作者：${item.by}
-得分：${item.score}
-链接：${item.url}
-
-要求：这是什么，为什么会上榜。`
+文章信息：
+- 标题：${item.title}
+- 作者：${item.by}
+- 得分：${item.score}分
+- 链接：${item.url}`
         }]
       })
     })
