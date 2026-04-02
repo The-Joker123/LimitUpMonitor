@@ -3,14 +3,18 @@
     <div class="page-header">
       <h2>Hacker News 热门话题</h2>
       <div class="header-controls">
-        <el-select v-model="selectedFeed" placeholder="选择类型" size="default" @change="fetchNews">
+        <el-select v-model="selectedSort" placeholder="排序" size="small" style="width: 90px">
+          <el-option label="默认" value="default" />
+          <el-option label="分数" value="score" />
+          <el-option label="评论" value="comments" />
+        </el-select>
+        <el-select v-model="selectedFeed" placeholder="类型" size="small" @change="fetchNews" style="width: 90px">
           <el-option label="热门" value="top" />
           <el-option label="最新" value="new" />
           <el-option label="最佳" value="best" />
         </el-select>
-        <el-button @click="fetchNews" :loading="loading">
+        <el-button @click="fetchNews" :loading="loading" size="small">
           <el-icon><Refresh /></el-icon>
-          刷新
         </el-button>
       </div>
     </div>
@@ -26,7 +30,7 @@
 
     <div v-else class="news-container">
       <div class="news-list">
-        <div v-for="(item, index) in stories" :key="item.id" class="news-item">
+        <div v-for="(item, index) in sortedStories" :key="item.id" class="news-item">
           <div class="news-rank" :class="getRankClass(index + 1)">{{ index + 1 }}</div>
           <div class="news-content">
             <div class="news-title-container">
@@ -82,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { Refresh, Loading, ArrowUp, ChatLineSquare, Clock, Finished, MagicStick } from '@element-plus/icons-vue'
 
@@ -90,6 +94,7 @@ const stories = ref([])
 const loading = ref(false)
 const error = ref('')
 const selectedFeed = ref('top')
+const selectedSort = ref('default')
 const translating = ref({})
 const aiExplaining = ref({})
 const aiContent = ref({})
@@ -99,6 +104,17 @@ const feedMap = {
   'new': 'newstories',
   'best': 'beststories'
 }
+
+const sortedStories = computed(() => {
+  const list = [...stories.value]
+  if (selectedSort.value === 'score') {
+    return list.sort((a, b) => b.score - a.score)
+  }
+  if (selectedSort.value === 'comments') {
+    return list.sort((a, b) => (b.descendants || 0) - (a.descendants || 0))
+  }
+  return list // default: API原始顺序
+})
 
 const fetchNews = async () => {
   loading.value = true
@@ -225,6 +241,41 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+:deep(.el-select) {
+  --el-fill-color-blank: rgba(255, 255, 255, 0.05);
+  --el-text-color-regular: rgba(255, 255, 255, 0.8);
+  --el-border-color: rgba(255, 255, 255, 0.1);
+  --el-border-color-hover: rgba(255, 255, 255, 0.2);
+}
+
+:deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+:deep(.el-input__inner) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+:deep(.el-select-dropdown) {
+  background: #1a1a2e;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:deep(.el-select-dropdown__item) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+:deep(.el-select-dropdown__item.hover),
+:deep(.el-select-dropdown__item:hover) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:deep(.el-select-dropdown__item.selected) {
+  color: #ff6600;
 }
 
 .page-header h2 {

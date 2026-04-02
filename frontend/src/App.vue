@@ -60,9 +60,12 @@
           </div>
         </div>
         <div class="toolbar-right">
-          <span class="update-time" v-if="currentTime">更新于 {{ currentTime }}</span>
-          <el-button type="primary" @click="fetchData" :loading="loading" plain size="small">
-            <el-icon><Refresh /></el-icon>
+          <span class="update-time" v-if="currentTime">
+            <el-icon class="time-icon"><Clock /></el-icon>
+            {{ currentTime }}
+          </span>
+          <el-button type="primary" @click="fetchData" :loading="loading" circle size="small">
+            <el-icon class="refresh-icon"><Refresh /></el-icon>
           </el-button>
         </div>
       </div>
@@ -323,8 +326,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
+import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
+import { Refresh, Clock } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
 import HackerNews from './components/HackerNews.vue'
@@ -373,6 +376,15 @@ const currentBoardStats = computed(() => boardData.value[activeTab.value] || [])
 // 板块筛选变化时刷新情绪曲线
 watch(selectedIndustry, () => {
   fetchEmotionHistory(selectedIndustry.value)
+})
+
+// 视图切换时停止/恢复自动刷新
+watch(currentView, (newView) => {
+  if (newView === 'hacker') {
+    stopAutoRefresh()
+  } else {
+    startAutoRefresh()
+  }
 })
 
 // 公司简介相关
@@ -566,11 +578,6 @@ onUnmounted(() => {
   letter-spacing: 0.3px;
 }
 
-.toolbar-right :deep(.el-button) {
-  padding: 6px 12px;
-  border-radius: 8px;
-}
-
 :deep(.el-date-picker) {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.1);
@@ -595,9 +602,9 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   flex-wrap: nowrap;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   margin-bottom: 16px;
 }
@@ -611,7 +618,7 @@ onUnmounted(() => {
 }
 
 .toolbar-left :deep(.el-date-editor) {
-  width: 130px;
+  width: 120px;
 }
 
 .period-switch {
@@ -623,7 +630,7 @@ onUnmounted(() => {
 }
 
 .period-btn {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -643,8 +650,25 @@ onUnmounted(() => {
 }
 
 .update-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.time-icon {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.refresh-icon {
+  font-size: 16px;
+}
+
+.toolbar-right :deep(.el-button.is-circle) {
+  padding: 6px;
 }
 
 .summary-cards {
