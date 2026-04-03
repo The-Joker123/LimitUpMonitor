@@ -1,83 +1,93 @@
 <template>
   <div class="hacker-news">
-    <div class="page-header">
-      <h2>Hacker News 热门话题</h2>
-      <div class="header-controls">
-        <el-select v-model="selectedSort" placeholder="排序" size="small" style="width: 90px">
-          <el-option label="默认" value="default" />
-          <el-option label="分数" value="score" />
-          <el-option label="评论" value="comments" />
-        </el-select>
-        <el-select v-model="selectedFeed" placeholder="类型" size="small" @change="fetchNews" style="width: 90px">
-          <el-option label="热门" value="top" />
-          <el-option label="最新" value="new" />
-          <el-option label="最佳" value="best" />
-        </el-select>
-        <el-button @click="fetchNews" :loading="loading" size="small">
+    <div class="toolbar">
+      <div class="toolbar-right">
+        <span class="update-time" v-if="currentTime">
+          <el-icon class="time-icon"><Clock /></el-icon>
+          {{ currentTime }}
+        </span>
+        <span class="update-time eastern" v-if="easternTime">
+          <span class="et-label">ET</span>
+          {{ easternTime }}
+        </span>
+        <span class="update-time pacific" v-if="pacificTime">
+          <span class="et-label">PT</span>
+          {{ pacificTime }}
+        </span>
+        <el-button @click="fetchAll" :loading="anyLoading" circle size="small">
           <el-icon><Refresh /></el-icon>
         </el-button>
       </div>
     </div>
 
-    <div v-if="error" class="error-message">
-      <p>{{ error }}</p>
-    </div>
+    <div class="feeds-grid">
+      <div v-for="feed in feedList" :key="feed.key" class="feed-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="feed-icon">{{ feed.icon }}</span>
+            <span class="feed-label">{{ feed.label }}</span>
+          </div>
+          <div class="card-controls">
+            <el-select v-model="feedSortMap[feed.key]" size="small" style="width: 80px" @change="sortFeed(feed.key)">
+              <el-option label="默认" value="default" />
+              <el-option label="分数" value="score" />
+              <el-option label="评论" value="comments" />
+            </el-select>
+            <el-button @click="fetchFeed(feed.key)" :loading="feedData[feed.key].loading" circle size="small">
+              <el-icon><Refresh /></el-icon>
+            </el-button>
+          </div>
+        </div>
 
-    <div v-else-if="loading" class="loading-state">
-      <el-icon class="is-loading"><Loading /></el-icon>
-      <span>加载中...</span>
-    </div>
+        <div v-if="feedData[feed.key].error" class="card-error">
+          {{ feedData[feed.key].error }}
+        </div>
 
-    <div v-else class="news-container">
-      <div class="news-list">
-        <div v-for="(item, index) in sortedStories" :key="item.id" class="news-item">
-          <div class="news-rank" :class="getRankClass(index + 1)">{{ index + 1 }}</div>
-          <div class="news-content">
-            <div class="news-title-container">
-              <a :href="item.url || `https://news.ycombinator.com/item?id=${item.id}`" target="_blank" class="news-title">
-                {{ item.translation || item.title }}
-              </a>
-              <span v-if="item.translation" class="original-title">{{ item.title }}</span>
-              <button 
-                class="translate-btn" 
-                @click="translateTitle(item)"
-                :disabled="translating[item.id]"
-                :title="item.translation ? '显示原文' : '翻译'"
-              >
-                <el-icon v-if="translating[item.id]" class="is-loading"><Loading /></el-icon>
-                <el-icon v-else><Finished /></el-icon>
-              </button>
-              <button 
-                class="ai-btn" 
-                @click="explainWithAI(item)"
-                :disabled="aiExplaining[item.id]"
-                title="AI讲解"
-              >
-                <el-icon v-if="aiExplaining[item.id]" class="is-loading"><Loading /></el-icon>
-                <el-icon v-else><MagicStick /></el-icon>
-              </button>
+        <div v-else-if="feedData[feed.key].loading" class="card-loading">
+          <el-icon class="is-loading"><Loading /></el-icon>
+        </div>
+
+        <div v-else class="card-list">
+          <div
+            v-for="(item, index) in getDisplayStories(feed.key)"
+            :key="item.id"
+            class="feed-item"
+          >
+            <span class="item-rank">{{ index + 1 }}</span>
+            <div class="item-content">
+              <div class="item-title-row">
+                <a
+                  :href="getItemUrl(item, feed.key)"
+                  target="_blank"
+                  class="item-title"
+                >
+                  {{ item.translation || item.title }}
+                </a>
+                <span v-if="item.translation" class="original-title">{{ item.title }}</span>
+              </div>
+              <div class="item-meta">
+                <button class="meta-btn translate" @click="translateTitle(item)" :disabled="translating[item.id]" :title="item.translation ? '原文' : '译'">
+                  <el-icon v-if="translating[item.id]" class="is-loading"><Loading /></el-icon>
+                  <el-icon v-else><Finished /></el-icon>
+                </button>
+                <button class="meta-btn ai" @click="explainWithAI(item)" :disabled="aiExplaining[item.id]" title="AI">
+                  <el-icon v-if="aiExplaining[item.id]" class="is-loading"><Loading /></el-icon>
+                  <el-icon v-else><MagicStick /></el-icon>
+                </button>
+                <span class="meta-score">
+                  <el-icon><ArrowUp /></el-icon>{{ item.score }}
+                </span>
+                <span v-if="feed.key !== 'jobs'" class="meta-comments">
+                  <el-icon><ChatLineSquare /></el-icon>{{ item.descendants || 0 }}
+                </span>
+                <span class="meta-time">{{ formatTime(item.time) }}</span>
+                <span class="meta-author">by {{ item.by }}</span>
+                <span v-if="item.domain" class="meta-domain">{{ item.domain }}</span>
+              </div>
+              <div v-if="aiContent[item.id]" class="ai-box">
+                {{ aiContent[item.id] }}
+              </div>
             </div>
-            <div v-if="aiContent[item.id]" class="ai-explain">
-              <div class="ai-content">{{ aiContent[item.id] }}</div>
-            </div>
-            <div class="news-meta">
-              <span class="meta-item">
-                <el-icon><ArrowUp /></el-icon>
-                {{ item.score }}
-              </span>
-              <span class="meta-item">
-                <el-icon><ChatLineSquare /></el-icon>
-                {{ item.descendants || 0 }}
-              </span>
-              <span class="meta-item time">
-                <el-icon><Clock /></el-icon>
-                {{ formatTime(item.time) }}
-              </span>
-              <span class="meta-item author">
-                by {{ item.by }}
-              </span>
-            </div>
-            <div v-if="item.domain" class="news-domain">{{ item.domain }}</div>
           </div>
         </div>
       </div>
@@ -86,71 +96,90 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { Refresh, Loading, ArrowUp, ChatLineSquare, Clock, Finished, MagicStick } from '@element-plus/icons-vue'
 
-const stories = ref([])
-const loading = ref(false)
-const error = ref('')
-const selectedFeed = ref('top')
-const selectedSort = ref('default')
+const feedList = [
+  { key: 'top',  label: '热门', icon: '🔥', endpoint: 'topstories' },
+  { key: 'new',  label: '最新', icon: '✨', endpoint: 'newstories' },
+  { key: 'best', label: '最佳', icon: '⭐', endpoint: 'beststories' },
+  { key: 'ask',  label: 'Ask',  icon: '❓', endpoint: 'askstories' },
+  { key: 'show', label: 'Show', icon: '💡', endpoint: 'showstories' },
+  { key: 'jobs', label: 'Jobs', icon: '💼', endpoint: 'jobstories' }
+]
+
+const feedData = reactive({})
+const feedSortMap = reactive({})
 const translating = ref({})
 const aiExplaining = ref({})
 const aiContent = ref({})
+const currentTime = ref('')
+const easternTime = ref('')
+const pacificTime = ref('')
 
-const feedMap = {
-  'top': 'topstories',
-  'new': 'newstories',
-  'best': 'beststories'
-}
-
-const sortedStories = computed(() => {
-  const list = [...stories.value]
-  if (selectedSort.value === 'score') {
-    return list.sort((a, b) => b.score - a.score)
-  }
-  if (selectedSort.value === 'comments') {
-    return list.sort((a, b) => (b.descendants || 0) - (a.descendants || 0))
-  }
-  return list // default: API原始顺序
+feedList.forEach(feed => {
+  feedData[feed.key] = { stories: [], loading: false, error: '' }
+  feedSortMap[feed.key] = 'default'
 })
 
-const fetchNews = async () => {
-  loading.value = true
-  error.value = ''
+const anyLoading = computed(() => feedList.some(f => feedData[f.key].loading))
+
+const getDisplayStories = (feedKey) => {
+  const stories = feedData[feedKey].stories || []
+  const sort = feedSortMap[feedKey] || 'default'
+  const display = stories.slice(0, 15)
+  if (sort === 'score') return [...display].sort((a, b) => b.score - a.score)
+  if (sort === 'comments') return [...display].sort((a, b) => (b.descendants || 0) - (a.descendants || 0))
+  return display
+}
+
+const sortFeed = (feedKey) => {
+  // Trigger reactivity by reassigning
+  const map = { ...feedSortMap }
+  feedSortMap[feedKey] = map[feedKey]
+}
+
+const getItemUrl = (item, feedKey) => {
+  if (feedKey === 'jobs') return `https://news.ycombinator.com/item?id=${item.id}`
+  return item.url || `https://news.ycombinator.com/item?id=${item.id}`
+}
+
+const fetchFeed = async (feedKey) => {
+  const feed = feedList.find(f => f.key === feedKey)
+  if (!feed) return
+
+  feedData[feedKey].loading = true
+  feedData[feedKey].error = ''
   try {
-    const idsUrl = `https://hacker-news.firebaseio.com/v0/${feedMap[selectedFeed.value]}.json`
-    const idsResponse = await axios.get(idsUrl)
-    const ids = idsResponse.data.slice(0, 30)
-    
+    const idsResponse = await axios.get(`https://hacker-news.firebaseio.com/v0/${feed.endpoint}.json`)
+    const ids = (idsResponse.data || []).slice(0, 20)
+
     const storiesData = await Promise.all(
       ids.map(async (id) => {
         try {
-          const response = await axios.get(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
-          const item = response.data
-          if (item && item.type === 'story') {
-            let domain = ''
-            if (item.url) {
-              try {
-                domain = new URL(item.url).hostname.replace('www.', '')
-              } catch (e) {}
-            }
-            return { ...item, domain }
+          const res = await axios.get(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
+          const item = res.data
+          if (!item || item.type === 'job') return null
+          let domain = ''
+          if (item.url) {
+            try { domain = new URL(item.url).hostname.replace('www.', '') } catch (e) {}
           }
-          return null
-        } catch (e) {
-          return null
-        }
+          return { ...item, domain }
+        } catch (e) { return null }
       })
     )
-    
-    stories.value = storiesData.filter(s => s !== null)
+
+    feedData[feedKey].stories = storiesData.filter(s => s !== null)
   } catch (e) {
-    error.value = '获取失败: ' + (e.message || '未知错误')
+    feedData[feedKey].error = '加载失败'
   } finally {
-    loading.value = false
+    feedData[feedKey].loading = false
   }
+}
+
+const fetchAll = async () => {
+  await Promise.all(feedList.map(f => fetchFeed(f.key)))
 }
 
 const translateTitle = async (item) => {
@@ -158,7 +187,6 @@ const translateTitle = async (item) => {
     item.translation = null
     return
   }
-  
   translating.value[item.id] = true
   try {
     const response = await axios.get('/api/translate', {
@@ -179,7 +207,6 @@ const explainWithAI = async (item) => {
     aiContent.value[item.id] = null
     return
   }
-  
   aiExplaining.value[item.id] = true
   try {
     const response = await fetch('/api/ai-chat', {
@@ -188,13 +215,13 @@ const explainWithAI = async (item) => {
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: `你是一位科技资讯评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注（上榜）。
+          content: `你是一位科技资讯评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注。
 
 文章信息：
 - 标题：${item.title}
 - 作者：${item.by}
 - 得分：${item.score}分
-- 链接：${item.url}`
+- 链接：${item.url || '无'}`
         }]
       })
     })
@@ -205,7 +232,7 @@ const explainWithAI = async (item) => {
       aiContent.value[item.id] = data.error || '解释生成失败'
     }
   } catch (e) {
-    aiContent.value[item.id] = '请求失败: ' + e.message
+    aiContent.value[item.id] = '请求失败'
   } finally {
     delete aiExplaining.value[item.id]
   }
@@ -214,20 +241,29 @@ const explainWithAI = async (item) => {
 const formatTime = (timestamp) => {
   const now = Math.floor(Date.now() / 1000)
   const diff = now - timestamp
-  
-  if (diff < 60) return `${diff}秒前`
-  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
-  return `${Math.floor(diff / 86400)}天前`
+  if (diff < 60) return `${diff}s`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  return `${Math.floor(diff / 86400)}d`
 }
 
-const getRankClass = (rank) => {
-  if (rank <= 3) return `rank-top${rank}`
-  return ''
+const updateTime = () => {
+  const now = new Date()
+  currentTime.value = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  easternTime.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' })
+  pacificTime.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Los_Angeles' })
 }
+
+let timeTimer = null
 
 onMounted(() => {
-  fetchNews()
+  fetchAll()
+  updateTime()
+  timeTimer = setInterval(updateTime, 1000)
+})
+
+onUnmounted(() => {
+  if (timeTimer) clearInterval(timeTimer)
 })
 </script>
 
@@ -236,28 +272,121 @@ onMounted(() => {
   padding: 20px;
 }
 
-.page-header {
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: nowrap;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 16px;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.update-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+}
+
+.time-icon {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.eastern,
+.pacific {
+  color: rgba(255, 255, 255, 0.5);
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  margin-left: 4px;
+}
+
+.et-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.3);
+  margin-right: 4px;
+}
+
+.feeds-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .feeds-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .feeds-grid { grid-template-columns: 1fr; }
+}
+
+.feed-card {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feed-icon {
+  font-size: 18px;
+}
+
+.feed-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.card-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 :deep(.el-select) {
   --el-fill-color-blank: rgba(255, 255, 255, 0.05);
   --el-text-color-regular: rgba(255, 255, 255, 0.8);
   --el-border-color: rgba(255, 255, 255, 0.1);
-  --el-border-color-hover: rgba(255, 255, 255, 0.2);
 }
 
 :deep(.el-input__wrapper) {
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  border-radius: 6px;
   box-shadow: none;
 }
 
 :deep(.el-input__inner) {
   color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
 }
 
 :deep(.el-select-dropdown) {
@@ -267,245 +396,175 @@ onMounted(() => {
 
 :deep(.el-select-dropdown__item) {
   color: rgba(255, 255, 255, 0.8);
-}
-
-:deep(.el-select-dropdown__item.hover),
-:deep(.el-select-dropdown__item:hover) {
-  background: rgba(255, 255, 255, 0.08);
+  font-size: 12px;
 }
 
 :deep(.el-select-dropdown__item.selected) {
   color: #ff6600;
 }
 
-.page-header h2 {
-  margin: 0;
-  font-size: 24px;
-  color: #fff;
-}
-
-.header-controls {
+.card-loading {
   display: flex;
-  gap: 12px;
+  justify-content: center;
   align-items: center;
+  padding: 40px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.error-message {
-  background: rgba(255, 71, 87, 0.1);
-  border: 1px solid rgba(255, 71, 87, 0.3);
-  border-radius: 8px;
-  padding: 24px;
+.card-error {
+  padding: 20px;
   text-align: center;
   color: #ff4757;
+  font-size: 13px;
 }
 
-.loading-state {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  padding: 60px;
-  color: rgba(255, 255, 255, 0.5);
+.card-list {
+  padding: 8px;
+  max-height: 480px;
+  overflow-y: auto;
 }
 
-.news-container {
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 20px;
+.card-list::-webkit-scrollbar {
+  width: 4px;
+}
+.card-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.card-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
 }
 
-.news-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.news-item {
+.feed-item {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.2s;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
 }
 
-.news-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
+.feed-item:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.news-rank {
-  width: 32px;
-  height: 32px;
+.item-rank {
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #ff6600, #ff8533);
-  color: #fff;
-  border-radius: 50%;
+  background: rgba(255, 102, 0, 0.2);
+  color: #ff6600;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: bold;
-  font-size: 14px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.rank-top1 {
-  background: linear-gradient(135deg, #ffd700, #ffb700);
-  font-size: 16px;
-}
-
-.rank-top2 {
-  background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
-  font-size: 15px;
-}
-
-.rank-top3 {
-  background: linear-gradient(135deg, #cd7f32, #b87333);
-  font-size: 14px;
-}
-
-.news-content {
+.item-content {
   flex: 1;
   min-width: 0;
 }
 
-.news-title {
-  font-size: 16px;
-  font-weight: 500;
+.item-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.item-title {
+  font-size: 13px;
   color: #fff;
   text-decoration: none;
-  display: block;
   line-height: 1.4;
-  margin-bottom: 8px;
+  display: block;
 }
 
-.news-title:hover {
+.item-title:hover {
   color: #ff6600;
-}
-
-.news-title-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .original-title {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
   text-decoration: line-through;
 }
 
-.translate-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 102, 0, 0.3);
-  background: rgba(255, 102, 0, 0.1);
-  color: #ff6600;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.translate-btn:hover {
-  background: rgba(255, 102, 0, 0.2);
-  border-color: #ff6600;
-}
-
-.translate-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.translate-btn .el-icon {
-  font-size: 14px;
-}
-
-.ai-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  border: 1px solid rgba(78, 205, 196, 0.3);
-  background: rgba(78, 205, 196, 0.1);
-  color: #4ecdc4;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.ai-btn:hover {
-  background: rgba(78, 205, 196, 0.2);
-  border-color: #4ecdc4;
-}
-
-.ai-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ai-btn .el-icon {
-  font-size: 14px;
-}
-
-.ai-explain {
-  margin-top: 12px;
-  padding: 12px;
-  background: rgba(78, 205, 196, 0.05);
-  border: 1px solid rgba(78, 205, 196, 0.2);
-  border-radius: 8px;
-}
-
-.ai-content {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.news-meta {
+.item-meta {
   display: flex;
+  align-items: center;
+  gap: 6px;
   flex-wrap: wrap;
-  gap: 12px;
 }
 
-.meta-item {
+.meta-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
 }
 
-.meta-item .el-icon {
-  font-size: 14px;
+.meta-btn .el-icon {
+  font-size: 12px;
+}
+
+.meta-btn.translate:hover {
+  border-color: rgba(255, 102, 0, 0.5);
+  color: #ff6600;
+  background: rgba(255, 102, 0, 0.1);
+}
+
+.meta-btn.ai:hover {
+  border-color: rgba(78, 205, 196, 0.5);
+  color: #4ecdc4;
+  background: rgba(78, 205, 196, 0.1);
+}
+
+.meta-score,
+.meta-comments,
+.meta-time,
+.meta-author,
+.meta-domain {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.meta-score .el-icon,
+.meta-comments .el-icon {
+  font-size: 12px;
   color: #ff6600;
 }
 
-.meta-item.time {
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.meta-item.author {
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.news-domain {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 11px;
-  padding: 2px 8px;
-  background: rgba(255, 102, 0, 0.15);
+.meta-domain {
+  padding: 1px 6px;
+  background: rgba(255, 102, 0, 0.1);
+  border-radius: 4px;
   color: #ff8533;
-  border-radius: 8px;
+}
+
+.ai-box {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(78, 205, 196, 0.05);
+  border: 1px solid rgba(78, 205, 196, 0.15);
+  border-radius: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 </style>

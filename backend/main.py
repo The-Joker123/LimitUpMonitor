@@ -24,12 +24,13 @@ app.add_middleware(
 )
 
 # 注册路由
-from routers import stocks, market, ai, util, health
+from routers import stocks, market, ai, util, health, config
 app.include_router(stocks.router)
 app.include_router(market.router)
 app.include_router(ai.router)
 app.include_router(util.router)
 app.include_router(health.router)
+app.include_router(config.router)
 
 
 if __name__ == "__main__":

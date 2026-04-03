@@ -7,7 +7,7 @@
         </svg>
         <div class="brand-text">
           <span class="brand-title">鹰</span>
-          <span class="brand-subtitle">实时数据 · 东方财富/akshare</span>
+          <span class="brand-subtitle">实时数据监控</span>
         </div>
       </div>
 
@@ -31,7 +31,16 @@
           HN热点
         </button>
       </div>
+
+      <button class="settings-btn" @click="showSettings = true" title="设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
     </nav>
+
+    <Settings :visible="showSettings" @close="showSettings = false" @saved="onSettingsSaved" />
 
     <HackerNews v-if="currentView === 'hacker'" />
 
@@ -331,12 +340,14 @@ import { Refresh, Clock } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
 import HackerNews from './components/HackerNews.vue'
+import Settings from './components/Settings.vue'
 import { useStockData } from './composables/useStockData'
 import { useStockFilters } from './composables/useStockFilters'
 
 const currentView = ref('limit-up')
 const activeTab = ref('all')
 const searchQuery = ref('')
+const showSettings = ref(false)
 
 // 使用 composables
 const {
@@ -452,6 +463,10 @@ const getPctClass = (pct) => {
   return 'pct-yellow'
 }
 
+const onSettingsSaved = () => {
+  // Settings saved, AI will use new config on next request
+}
+
 onMounted(() => {
   fetchData()
   fetchEmotionHistory()
@@ -565,6 +580,30 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.2s;
+}
+
+.settings-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.settings-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .update-time {
