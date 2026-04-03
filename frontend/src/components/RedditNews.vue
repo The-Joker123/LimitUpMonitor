@@ -1,5 +1,5 @@
 <template>
-  <div class="hacker-news">
+  <div class="reddit-news">
     <div class="toolbar">
       <div class="toolbar-right">
         <span class="update-time" v-if="currentTime">
@@ -21,35 +21,35 @@
     </div>
 
     <div class="feeds-grid">
-      <div v-for="feed in feedList" :key="feed.key" class="feed-card">
+      <div v-for="sub in subredditList" :key="sub.key" class="feed-card">
         <div class="card-header">
           <div class="card-title">
-            <span class="feed-icon">{{ feed.icon }}</span>
-            <span class="feed-label">{{ feed.label }}</span>
+            <span class="feed-icon">{{ sub.icon }}</span>
+            <span class="feed-label">{{ sub.label }}</span>
           </div>
           <div class="card-controls">
-            <el-select v-model="feedSortMap[feed.key]" size="small" style="width: 80px" @change="sortFeed(feed.key)">
-              <el-option label="默认" value="default" />
-              <el-option label="分数" value="score" />
-              <el-option label="评论" value="comments" />
+            <el-select v-model="sortMap[sub.key]" size="small" style="width: 80px">
+              <el-option label="热门" value="hot" />
+              <el-option label="最新" value="new" />
+              <el-option label="评分" value="top" />
             </el-select>
-            <el-button @click="fetchFeed(feed.key)" :loading="feedData[feed.key].loading" circle size="small">
+            <el-button @click="fetchSub(sub.key)" :loading="feedData[sub.key].loading" circle size="small">
               <el-icon><Refresh /></el-icon>
             </el-button>
           </div>
         </div>
 
-        <div v-if="feedData[feed.key].error" class="card-error">
-          {{ feedData[feed.key].error }}
+        <div v-if="feedData[sub.key].error" class="card-error">
+          {{ feedData[sub.key].error }}
         </div>
 
-        <div v-else-if="feedData[feed.key].loading" class="card-loading">
+        <div v-else-if="feedData[sub.key].loading" class="card-loading">
           <el-icon class="is-loading"><Loading /></el-icon>
         </div>
 
         <div v-else class="card-list">
           <div
-            v-for="(item, index) in getDisplayStories(feed.key)"
+            v-for="(item, index) in getDisplayPosts(sub.key)"
             :key="item.id"
             class="feed-item"
           >
@@ -57,7 +57,7 @@
             <div class="item-content">
               <div class="item-title-row">
                 <a
-                  :href="getItemUrl(item, feed.key)"
+                  :href="item.permalink"
                   target="_blank"
                   class="item-title"
                 >
@@ -66,7 +66,7 @@
                 <span v-if="item.translation" class="original-title">{{ item.title }}</span>
               </div>
               <div class="item-meta">
-                <button class="meta-btn translate" @click="translateTitle(item)" :disabled="translating[item.id]" :title="item.translation ? '原文' : '译'">
+                <button class="meta-btn translate" @click="translateTitle(item)" :disabled="translating[item.id]" title="译">
                   <el-icon v-if="translating[item.id]" class="is-loading"><Loading /></el-icon>
                   <el-icon v-else><Finished /></el-icon>
                 </button>
@@ -77,12 +77,11 @@
                 <span class="meta-score">
                   <el-icon><ArrowUp /></el-icon>{{ item.score }}
                 </span>
-                <span v-if="feed.key !== 'jobs'" class="meta-comments">
-                  <el-icon><ChatLineSquare /></el-icon>{{ item.descendants || 0 }}
+                <span class="meta-comments">
+                  <el-icon><ChatLineSquare /></el-icon>{{ item.num_comments }}
                 </span>
-                <span class="meta-time">{{ formatTime(item.time) }}</span>
-                <span class="meta-author">by {{ item.by }}</span>
-                <span v-if="item.domain" class="meta-domain">{{ item.domain }}</span>
+                <span class="meta-time">{{ formatTime(item.created_utc) }}</span>
+                <span class="meta-author">u/{{ item.author }}</span>
               </div>
               <div v-if="aiContent[item.id]" class="ai-box">
                 {{ aiContent[item.id] }}
@@ -100,17 +99,17 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { Refresh, Loading, ArrowUp, ChatLineSquare, Clock, Finished, MagicStick } from '@element-plus/icons-vue'
 
-const feedList = [
-  { key: 'top',  label: '热门', icon: '🔥', endpoint: 'topstories' },
-  { key: 'new',  label: '最新', icon: '✨', endpoint: 'newstories' },
-  { key: 'best', label: '最佳', icon: '⭐', endpoint: 'beststories' },
-  { key: 'ask',  label: 'Ask',  icon: '❓', endpoint: 'askstories' },
-  { key: 'show', label: 'Show', icon: '💡', endpoint: 'showstories' },
-  { key: 'jobs', label: 'Jobs', icon: '💼', endpoint: 'jobstories' }
+const subredditList = [
+  { key: 'worldnews', label: '世界', icon: '🌍', endpoint: 'hot' },
+  { key: 'technology', label: '科技', icon: '💻', endpoint: 'hot' },
+  { key: 'programming', label: '编程', icon: '⌨️', endpoint: 'hot' },
+  { key: 'science', label: '科学', icon: '🔬', endpoint: 'hot' },
+  { key: 'business', label: '商业', icon: '💼', endpoint: 'hot' },
+  { key: 'stocks', label: '股票', icon: '📈', endpoint: 'hot' }
 ]
 
 const feedData = reactive({})
-const feedSortMap = reactive({})
+const sortMap = reactive({})
 const translating = ref({})
 const aiExplaining = ref({})
 const aiContent = ref({})
@@ -118,68 +117,42 @@ const currentTime = ref('')
 const easternTime = ref('')
 const pacificTime = ref('')
 
-feedList.forEach(feed => {
-  feedData[feed.key] = { stories: [], loading: false, error: '' }
-  feedSortMap[feed.key] = 'default'
+subredditList.forEach(sub => {
+  feedData[sub.key] = { posts: [], loading: false, error: '' }
+  sortMap[sub.key] = 'hot'
 })
 
-const anyLoading = computed(() => feedList.some(f => feedData[f.key].loading))
+const anyLoading = computed(() => subredditList.some(s => feedData[s.key].loading))
 
-const getDisplayStories = (feedKey) => {
-  const stories = feedData[feedKey].stories || []
-  const sort = feedSortMap[feedKey] || 'default'
-  const display = stories.slice(0, 15)
-  if (sort === 'score') return [...display].sort((a, b) => b.score - a.score)
-  if (sort === 'comments') return [...display].sort((a, b) => (b.descendants || 0) - (a.descendants || 0))
+const getDisplayPosts = (key) => {
+  const posts = feedData[key].posts || []
+  const sort = sortMap[key] || 'hot'
+  const display = posts.slice(0, 12)
+  if (sort === 'top') return [...display].sort((a, b) => b.score - a.score)
+  if (sort === 'new') return [...display].sort((a, b) => b.created_utc - a.created_utc)
   return display
 }
 
-const sortFeed = (feedKey) => {
-  // Trigger reactivity by reassigning
-  const map = { ...feedSortMap }
-  feedSortMap[feedKey] = map[feedKey]
-}
-
-const getItemUrl = (item, feedKey) => {
-  if (feedKey === 'jobs') return `https://news.ycombinator.com/item?id=${item.id}`
-  return item.url || `https://news.ycombinator.com/item?id=${item.id}`
-}
-
-const fetchFeed = async (feedKey) => {
-  const feed = feedList.find(f => f.key === feedKey)
-  if (!feed) return
-
-  feedData[feedKey].loading = true
-  feedData[feedKey].error = ''
+const fetchSub = async (subreddit) => {
+  feedData[subreddit].loading = true
+  feedData[subreddit].error = ''
   try {
-    const idsResponse = await axios.get(`https://hacker-news.firebaseio.com/v0/${feed.endpoint}.json`)
-    const ids = (idsResponse.data || []).slice(0, 20)
-
-    const storiesData = await Promise.all(
-      ids.map(async (id) => {
-        try {
-          const res = await axios.get(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
-          const item = res.data
-          if (!item || item.type === 'job') return null
-          let domain = ''
-          if (item.url) {
-            try { domain = new URL(item.url).hostname.replace('www.', '') } catch (e) {}
-          }
-          return { ...item, domain }
-        } catch (e) { return null }
-      })
-    )
-
-    feedData[feedKey].stories = storiesData.filter(s => s !== null)
+    const res = await axios.get(`/api/reddit/${subreddit}`)
+    if (res.data && res.data.error) {
+      feedData[subreddit].error = res.data.error
+      feedData[subreddit].posts = []
+    } else {
+      feedData[subreddit].posts = res.data.posts || []
+    }
   } catch (e) {
-    feedData[feedKey].error = '加载失败'
+    feedData[subreddit].error = '加载失败'
   } finally {
-    feedData[feedKey].loading = false
+    feedData[subreddit].loading = false
   }
 }
 
 const fetchAll = async () => {
-  await Promise.all(feedList.map(f => fetchFeed(f.key)))
+  await Promise.all(subredditList.map(s => fetchSub(s.key)))
 }
 
 const translateTitle = async (item) => {
@@ -189,11 +162,11 @@ const translateTitle = async (item) => {
   }
   translating.value[item.id] = true
   try {
-    const response = await axios.get('/api/translate', {
+    const res = await axios.get('/api/translate', {
       params: { text: item.title, from_lang: 'en', to_lang: 'zh' }
     })
-    if (response.data && response.data.translation) {
-      item.translation = response.data.translation
+    if (res.data && res.data.translation) {
+      item.translation = res.data.translation
     }
   } catch (e) {
     console.error('翻译失败:', e)
@@ -215,13 +188,14 @@ const explainWithAI = async (item) => {
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: `你是一位科技资讯评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注。
+          content: `你是一位英文资讯评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注。
 
-文章信息：
+帖子信息：
 - 标题：${item.title}
-- 作者：${item.by}
-- 得分：${item.score}分
-- 链接：${item.url || '无'}`
+- 作者：${item.author}
+- 评分：${item.score}
+- 评论数：${item.num_comments}
+- 链接：${item.permalink}`
         }]
       })
     })
@@ -239,9 +213,9 @@ const explainWithAI = async (item) => {
 }
 
 const formatTime = (timestamp) => {
+  if (!timestamp) return '-'
   const now = Math.floor(Date.now() / 1000)
   const diff = now - timestamp
-  if (diff < 60) return `${diff}s`
   if (diff < 3600) return `${Math.floor(diff / 60)}m`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`
   return `${Math.floor(diff / 86400)}d`
@@ -268,14 +242,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.hacker-news {
+.reddit-news {
   padding: 0 20px 20px;
 }
 
 .toolbar {
   display: flex;
   justify-content: flex-end;
-  align-items: center;
   flex-wrap: nowrap;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.03);
@@ -286,7 +259,6 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
-.toolbar-left,
 .toolbar-right {
   display: flex;
   align-items: center;
@@ -408,7 +380,7 @@ onUnmounted(() => {
 }
 
 :deep(.el-select-dropdown__item.selected) {
-  color: #ff6600;
+  color: #ff4500;
 }
 
 .card-loading {
@@ -428,20 +400,13 @@ onUnmounted(() => {
 
 .card-list {
   padding: 8px;
-  max-height: 480px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
-.card-list::-webkit-scrollbar {
-  width: 4px;
-}
-.card-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-.card-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-}
+.card-list::-webkit-scrollbar { width: 4px; }
+.card-list::-webkit-scrollbar-track { background: transparent; }
+.card-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
 
 .feed-item {
   display: flex;
@@ -462,8 +427,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 102, 0, 0.2);
-  color: #ff6600;
+  background: rgba(255, 69, 0, 0.2);
+  color: #ff4500;
   border-radius: 4px;
   font-size: 11px;
   font-weight: bold;
@@ -492,7 +457,7 @@ onUnmounted(() => {
 }
 
 .item-title:hover {
-  color: #ff6600;
+  color: #ff4500;
 }
 
 .original-title {
@@ -542,8 +507,7 @@ onUnmounted(() => {
 .meta-score,
 .meta-comments,
 .meta-time,
-.meta-author,
-.meta-domain {
+.meta-author {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -554,14 +518,7 @@ onUnmounted(() => {
 .meta-score .el-icon,
 .meta-comments .el-icon {
   font-size: 12px;
-  color: #ff6600;
-}
-
-.meta-domain {
-  padding: 1px 6px;
-  background: rgba(255, 102, 0, 0.1);
-  border-radius: 4px;
-  color: #ff8533;
+  color: #ff4500;
 }
 
 .ai-box {

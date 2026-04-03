@@ -30,6 +30,15 @@
           </svg>
           HN热点
         </button>
+        <button
+          :class="['tab-item', { active: currentView === 'reddit' }]"
+          @click="currentView = 'reddit'"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm8 0h-2v-6h2v6zm-1-7.5c0-.28-.22-.5-.5-.5s-.5.22-.5.5v1.5h1v-1.5z"/>
+          </svg>
+          Reddit热点
+        </button>
       </div>
 
       <button class="settings-btn" @click="showSettings = true" title="设置">
@@ -43,6 +52,7 @@
     <Settings :visible="showSettings" @close="showSettings = false" @saved="onSettingsSaved" />
 
     <HackerNews v-if="currentView === 'hacker'" />
+    <RedditNews v-if="currentView === 'reddit'" />
 
     <div v-if="currentView === 'limit-up'">
       <div class="toolbar">
@@ -340,6 +350,7 @@ import { Refresh, Clock } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
 import HackerNews from './components/HackerNews.vue'
+import RedditNews from './components/RedditNews.vue'
 import Settings from './components/Settings.vue'
 import { useStockData } from './composables/useStockData'
 import { useStockFilters } from './composables/useStockFilters'
@@ -615,6 +626,11 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
   letter-spacing: 0.3px;
+  line-height: 1;
+  height: 24px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
 }
 
 :deep(.el-date-picker) {
