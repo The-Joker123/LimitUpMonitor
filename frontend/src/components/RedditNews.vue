@@ -28,7 +28,7 @@
             <span class="feed-label">{{ sub.label }}</span>
           </div>
           <div class="card-controls">
-            <el-select v-model="sortMap[sub.key]" size="small" style="width: 80px">
+            <el-select v-model="sortMap[sub.key]" size="small" style="width: 80px" @change="fetchSub(sub.key)">
               <el-option label="热门" value="hot" />
               <el-option label="最新" value="new" />
               <el-option label="评分" value="top" />
@@ -74,12 +74,6 @@
                   <el-icon v-if="aiExplaining[item.id]" class="is-loading"><Loading /></el-icon>
                   <el-icon v-else><MagicStick /></el-icon>
                 </button>
-                <span class="meta-score">
-                  <el-icon><ArrowUp /></el-icon>{{ item.score }}
-                </span>
-                <span class="meta-comments">
-                  <el-icon><ChatLineSquare /></el-icon>{{ item.num_comments }}
-                </span>
                 <span class="meta-time">{{ formatTime(item.created_utc) }}</span>
                 <span class="meta-author">u/{{ item.author }}</span>
               </div>
@@ -97,7 +91,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
-import { Refresh, Loading, ArrowUp, ChatLineSquare, Clock, Finished, MagicStick } from '@element-plus/icons-vue'
+import { Refresh, Loading, Clock, Finished, MagicStick } from '@element-plus/icons-vue'
 
 const subredditList = [
   { key: 'worldnews', label: '世界', icon: '🌍', endpoint: 'hot' },
@@ -137,7 +131,8 @@ const fetchSub = async (subreddit) => {
   feedData[subreddit].loading = true
   feedData[subreddit].error = ''
   try {
-    const res = await axios.get(`/api/reddit/${subreddit}`)
+    const sort = sortMap[subreddit] || 'hot'
+    const res = await axios.get(`/api/reddit/${subreddit}?sort=${sort}`)
     if (res.data && res.data.error) {
       feedData[subreddit].error = res.data.error
       feedData[subreddit].posts = []

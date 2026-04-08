@@ -21,13 +21,16 @@ def parse_iso8601(date_str: str) -> float:
 
 
 @router.get("/reddit/{subreddit}")
-def get_reddit_hot(subreddit: str):
-    """获取 Reddit 指定版块的热门帖子（RSS 方式）"""
+def get_reddit_hot(subreddit: str, sort: str = "hot"):
+    """获取 Reddit 指定版块的帖子（RSS 方式）"""
     if subreddit not in ALLOWED_SUBREDDITS:
         return {"error": "不允许访问该版块", "posts": []}
 
+    sort_map = {"hot": "hot", "new": "new", "top": "top"}
+    sort_suffix = sort_map.get(sort, "hot")
+
     try:
-        url = f"https://www.reddit.com/r/{subreddit}/hot.rss"
+        url = f"https://www.reddit.com/r/{subreddit}/{sort_suffix}.rss"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "application/rss+xml"
