@@ -402,10 +402,10 @@ watch(selectedIndustry, () => {
 
 // 视图切换时停止/恢复自动刷新
 watch(currentView, (newView) => {
-  if (newView === 'hacker') {
-    stopAutoRefresh()
-  } else {
+  if (newView === 'limit-up') {
     startAutoRefresh()
+  } else {
+    stopAutoRefresh()
   }
 })
 
