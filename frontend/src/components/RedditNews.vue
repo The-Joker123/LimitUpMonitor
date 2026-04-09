@@ -104,16 +104,16 @@ import axios from 'axios'
 import { Refresh, Loading, Clock, Finished, MagicStick } from '@element-plus/icons-vue'
 
 const subredditList = [
-  { key: 'worldnews', label: '世界', icon: '🌍', endpoint: 'hot' },
-  { key: 'technology', label: '科技', icon: '💻', endpoint: 'hot' },
-  { key: 'programming', label: '编程', icon: '⌨️', endpoint: 'hot' },
-  { key: 'science', label: '科学', icon: '🔬', endpoint: 'hot' },
-  { key: 'business', label: '商业', icon: '💼', endpoint: 'hot' },
-  { key: 'stocks', label: '股票', icon: '📈', endpoint: 'hot' },
-  { key: 'geopolitics', label: '地缘政治', icon: '🌐', endpoint: 'hot' },
-  { key: 'War', label: '战争', icon: '⚔️', endpoint: 'hot' },
-  { key: 'dataisbeautiful', label: '数据之美', icon: '📊', endpoint: 'hot' },
-  { key: 'StartledCats', label: '受惊的猫', icon: '😺', endpoint: 'hot' }
+  { key: 'worldnews', label: '世界', icon: '🌍', prompt: '你是一位国际新闻专家。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及可能产生的影响。' },
+  { key: 'technology', label: '科技', icon: '💻', prompt: '你是一位科技分析师。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及可能带来的技术变革。' },
+  { key: 'programming', label: '编程', icon: '⌨️', prompt: '你是一位技术架构师。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及对开发者社区的影响。' },
+  { key: 'science', label: '科学', icon: '🔬', prompt: '你是一位科普评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及科学研究发现的意义。' },
+  { key: 'business', label: '商业', icon: '💼', prompt: '你是一位商业策略分析师。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及可能对市场的影响。' },
+  { key: 'stocks', label: '股票', icon: '📈', prompt: '你是一位金融投资顾问。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及可能带来的投资风险。' },
+  { key: 'geopolitics', label: '地缘政治', icon: '🌐', prompt: '你是一位地缘政治分析师。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及可能改变的地缘格局。' },
+  { key: 'War', label: '战争', icon: '⚔️', prompt: '你是一位军事评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及可能带来的影响。' },
+  { key: 'dataisbeautiful', label: '数据之美', icon: '📊', prompt: '你是一位数据可视化专家。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注以及数据故事的有效性。' },
+  { key: 'StartledCats', label: '受惊的猫', icon: '😺', prompt: '你是一位轻松幽默的资讯评论员。请用50字以内简要说明这篇有趣的内容，并解释它为什么值得关注（搞笑/可爱/治愈等）。' },
 ]
 
 const feedData = reactive({})
@@ -205,6 +205,10 @@ const explainWithAI = async (item) => {
     aiContent.value[item.id] = null
     return
   }
+  // 获取板块专属提示词
+  const subConfig = subredditList.find(s => s.key === item.subreddit)
+  const expertPrompt = subConfig?.prompt || '你是一位英文资讯评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注。'
+
   aiExplaining.value[item.id] = true
   try {
     const response = await fetch('/api/ai-chat', {
@@ -213,7 +217,7 @@ const explainWithAI = async (item) => {
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: `你是一位英文资讯评论员。请用50字以内简要说明这篇文章的内容，并解释它为什么值得关注。
+          content: `${expertPrompt}
 
 帖子信息：
 - 标题：${item.title}
