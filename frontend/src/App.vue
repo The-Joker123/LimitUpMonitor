@@ -39,6 +39,15 @@
           </svg>
           Reddit热点
         </button>
+        <button
+          :class="['tab-item', { active: currentView === 'trending' }]"
+          @click="currentView = 'trending'"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+          </svg>
+          热点热榜
+        </button>
       </div>
 
       <button class="settings-btn" @click="showSettings = true" title="设置">
@@ -53,6 +62,7 @@
 
     <HackerNews v-if="currentView === 'hacker'" />
     <RedditNews v-if="currentView === 'reddit'" />
+    <TrendingNews v-if="currentView === 'trending'" />
 
     <div v-if="currentView === 'limit-up'">
       <div class="toolbar">
@@ -352,6 +362,7 @@ import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
 import HackerNews from './components/HackerNews.vue'
 import RedditNews from './components/RedditNews.vue'
+import TrendingNews from './components/TrendingNews.vue'
 import Settings from './components/Settings.vue'
 import { useStockData } from './composables/useStockData'
 import { useStockFilters } from './composables/useStockFilters'
