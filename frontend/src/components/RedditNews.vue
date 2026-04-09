@@ -14,8 +14,9 @@
           <span class="et-label">PT</span>
           {{ pacificTime }}
         </span>
-        <el-button @click="fetchAll" :loading="anyLoading" circle size="small">
-          <el-icon><Refresh /></el-icon>
+        <el-button @click="fetchAll" :disabled="anyLoading" size="small" circle>
+          <el-icon v-if="anyLoading" class="is-loading"><Loading /></el-icon>
+          <el-icon v-else><Refresh /></el-icon>
         </el-button>
       </div>
     </div>
@@ -33,8 +34,17 @@
               <el-option label="最新" value="new" />
               <el-option label="评分" value="top" />
             </el-select>
-            <el-button @click="fetchSub(sub.key)" :loading="feedData[sub.key].loading" circle size="small">
-              <el-icon><Refresh /></el-icon>
+            <el-button @click="translateAll(sub.key)" :disabled="translatingAll[sub.key]" size="small" title="全部翻译">
+              <el-icon v-if="translatingAll[sub.key]" class="is-loading"><Loading /></el-icon>
+              <el-icon v-else><Finished /></el-icon>
+            </el-button>
+            <el-button @click="explainAll(sub.key)" :disabled="aiExplainingAll[sub.key]" size="small" title="全部AI">
+              <el-icon v-if="aiExplainingAll[sub.key]" class="is-loading"><Loading /></el-icon>
+              <el-icon v-else><MagicStick /></el-icon>
+            </el-button>
+            <el-button @click="fetchSub(sub.key)" :disabled="feedData[sub.key].loading" circle size="small">
+              <el-icon v-if="feedData[sub.key].loading" class="is-loading"><Loading /></el-icon>
+              <el-icon v-else><Refresh /></el-icon>
             </el-button>
           </div>
         </div>
@@ -99,7 +109,11 @@ const subredditList = [
   { key: 'programming', label: '编程', icon: '⌨️', endpoint: 'hot' },
   { key: 'science', label: '科学', icon: '🔬', endpoint: 'hot' },
   { key: 'business', label: '商业', icon: '💼', endpoint: 'hot' },
-  { key: 'stocks', label: '股票', icon: '📈', endpoint: 'hot' }
+  { key: 'stocks', label: '股票', icon: '📈', endpoint: 'hot' },
+  { key: 'geopolitics', label: '地缘政治', icon: '🌐', endpoint: 'hot' },
+  { key: 'War', label: '战争', icon: '⚔️', endpoint: 'hot' },
+  { key: 'dataisbeautiful', label: '数据之美', icon: '📊', endpoint: 'hot' },
+  { key: 'StartledCats', label: '受惊的猫', icon: '😺', endpoint: 'hot' }
 ]
 
 const feedData = reactive({})
@@ -107,6 +121,8 @@ const sortMap = reactive({})
 const translating = ref({})
 const aiExplaining = ref({})
 const aiContent = ref({})
+const translatingAll = ref({})
+const aiExplainingAll = ref({})
 const currentTime = ref('')
 const easternTime = ref('')
 const pacificTime = ref('')
@@ -170,6 +186,20 @@ const translateTitle = async (item) => {
   }
 }
 
+const translateAll = async (subreddit) => {
+  const posts = feedData[subreddit].posts || []
+  translatingAll.value[subreddit] = true
+  try {
+    for (const item of posts) {
+      if (!item.translation) {
+        await translateTitle(item)
+      }
+    }
+  } finally {
+    translatingAll.value[subreddit] = false
+  }
+}
+
 const explainWithAI = async (item) => {
   if (aiContent.value[item.id]) {
     aiContent.value[item.id] = null
@@ -204,6 +234,20 @@ const explainWithAI = async (item) => {
     aiContent.value[item.id] = '请求失败'
   } finally {
     delete aiExplaining.value[item.id]
+  }
+}
+
+const explainAll = async (subreddit) => {
+  const posts = feedData[subreddit].posts || []
+  aiExplainingAll.value[subreddit] = true
+  try {
+    for (const item of posts) {
+      if (!aiContent.value[item.id]) {
+        await explainWithAI(item)
+      }
+    }
+  } finally {
+    aiExplainingAll.value[subreddit] = false
   }
 }
 
@@ -259,6 +303,26 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+}
+
+.refresh-btn .el-icon {
+  font-size: 14px;
+}
+
+.refresh-btn .is-loading {
+  animation: rotating 1s linear infinite;
+}
+
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .update-time {
@@ -376,6 +440,24 @@ onUnmounted(() => {
 
 :deep(.el-select-dropdown__item.selected) {
   color: #ff4500;
+}
+
+.card-controls .el-button {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.card-controls .el-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.card-controls .el-button:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .card-loading {

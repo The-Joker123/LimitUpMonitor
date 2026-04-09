@@ -83,8 +83,9 @@
             <el-icon class="time-icon"><Clock /></el-icon>
             {{ currentTime }}
           </span>
-          <el-button type="primary" @click="fetchData" :loading="loading" circle size="small">
-            <el-icon class="refresh-icon"><Refresh /></el-icon>
+          <el-button type="primary" @click="fetchData" :disabled="loading" circle size="small">
+            <el-icon v-if="loading" class="refresh-icon is-loading"><Loading /></el-icon>
+            <el-icon v-else class="refresh-icon"><Refresh /></el-icon>
           </el-button>
         </div>
       </div>
@@ -346,7 +347,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
-import { Refresh, Clock } from '@element-plus/icons-vue'
+import { Refresh, Clock, Loading } from '@element-plus/icons-vue'
 import AiChat from './components/AiChat.vue'
 import LimitUpChart from './components/LimitUpChart.vue'
 import HackerNews from './components/HackerNews.vue'

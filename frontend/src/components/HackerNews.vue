@@ -14,8 +14,9 @@
           <span class="et-label">PT</span>
           {{ pacificTime }}
         </span>
-        <el-button @click="fetchAll" :loading="anyLoading" circle size="small">
-          <el-icon><Refresh /></el-icon>
+        <el-button @click="fetchAll" :disabled="anyLoading" size="small" circle>
+          <el-icon v-if="anyLoading" class="is-loading"><Loading /></el-icon>
+          <el-icon v-else><Refresh /></el-icon>
         </el-button>
       </div>
     </div>
@@ -33,8 +34,17 @@
               <el-option label="分数" value="score" />
               <el-option label="评论" value="comments" />
             </el-select>
-            <el-button @click="fetchFeed(feed.key)" :loading="feedData[feed.key].loading" circle size="small">
-              <el-icon><Refresh /></el-icon>
+            <el-button @click="translateAll(feed.key)" :disabled="translatingAll[feed.key]" size="small" title="全部翻译">
+              <el-icon v-if="translatingAll[feed.key]" class="is-loading"><Loading /></el-icon>
+              <el-icon v-else><Finished /></el-icon>
+            </el-button>
+            <el-button @click="explainAll(feed.key)" :disabled="aiExplainingAll[feed.key]" size="small" title="全部AI">
+              <el-icon v-if="aiExplainingAll[feed.key]" class="is-loading"><Loading /></el-icon>
+              <el-icon v-else><MagicStick /></el-icon>
+            </el-button>
+            <el-button @click="fetchFeed(feed.key)" :disabled="feedData[feed.key].loading" circle size="small">
+              <el-icon v-if="feedData[feed.key].loading" class="is-loading"><Loading /></el-icon>
+              <el-icon v-else><Refresh /></el-icon>
             </el-button>
           </div>
         </div>
@@ -114,6 +124,8 @@ const feedSortMap = reactive({})
 const translating = ref({})
 const aiExplaining = ref({})
 const aiContent = ref({})
+const translatingAll = ref({})
+const aiExplainingAll = ref({})
 const currentTime = ref('')
 const easternTime = ref('')
 const pacificTime = ref('')
@@ -202,6 +214,20 @@ const translateTitle = async (item) => {
   }
 }
 
+const translateAll = async (feedKey) => {
+  const stories = feedData[feedKey].stories || []
+  translatingAll.value[feedKey] = true
+  try {
+    for (const item of stories) {
+      if (!item.translation) {
+        await translateTitle(item)
+      }
+    }
+  } finally {
+    translatingAll.value[feedKey] = false
+  }
+}
+
 const explainWithAI = async (item) => {
   if (aiContent.value[item.id]) {
     aiContent.value[item.id] = null
@@ -235,6 +261,20 @@ const explainWithAI = async (item) => {
     aiContent.value[item.id] = '请求失败'
   } finally {
     delete aiExplaining.value[item.id]
+  }
+}
+
+const explainAll = async (feedKey) => {
+  const stories = feedData[feedKey].stories || []
+  aiExplainingAll.value[feedKey] = true
+  try {
+    for (const item of stories) {
+      if (!aiContent.value[item.id]) {
+        await explainWithAI(item)
+      }
+    }
+  } finally {
+    aiExplainingAll.value[feedKey] = false
   }
 }
 
@@ -292,6 +332,26 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+}
+
+.refresh-btn .el-icon {
+  font-size: 14px;
+}
+
+.refresh-btn .is-loading {
+  animation: rotating 1s linear infinite;
+}
+
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .update-time {
@@ -409,6 +469,24 @@ onUnmounted(() => {
 
 :deep(.el-select-dropdown__item.selected) {
   color: #ff6600;
+}
+
+.card-controls .el-button {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.card-controls .el-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.card-controls .el-button:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .card-loading {
