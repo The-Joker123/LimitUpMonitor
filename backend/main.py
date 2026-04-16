@@ -13,7 +13,9 @@ load_dotenv()
 app = FastAPI(title="A股涨停连板监控系统 V1")
 
 # CORS配置 - 仅允许特定前端域名
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +26,18 @@ app.add_middleware(
 )
 
 # 注册路由
-from routers import stocks, market, ai, util, health, config, reddit, trending
+from routers import (
+    stocks,
+    market,
+    ai,
+    util,
+    health,
+    config,
+    reddit,
+    trending,
+    claude_code,
+)
+
 app.include_router(stocks.router)
 app.include_router(market.router)
 app.include_router(ai.router)
@@ -33,6 +46,7 @@ app.include_router(health.router)
 app.include_router(config.router)
 app.include_router(reddit.router)
 app.include_router(trending.router)
+app.include_router(claude_code.router)
 
 
 if __name__ == "__main__":

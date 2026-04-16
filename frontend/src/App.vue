@@ -48,6 +48,16 @@
           </svg>
           热点热榜
         </button>
+        <button
+          :class="['tab-item', { active: currentView === 'claude-code' }]"
+          @click="currentView = 'claude-code'"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          Claude 更新
+        </button>
       </div>
 
       <button class="settings-btn" @click="showSettings = true" title="设置">
@@ -63,6 +73,7 @@
     <HackerNews v-if="currentView === 'hacker'" />
     <RedditNews v-if="currentView === 'reddit'" />
     <TrendingNews v-if="currentView === 'trending'" />
+    <ClaudeCode v-if="currentView === 'claude-code'" />
 
     <div v-if="currentView === 'limit-up'">
       <div class="toolbar">
@@ -363,6 +374,7 @@ import LimitUpChart from './components/LimitUpChart.vue'
 import HackerNews from './components/HackerNews.vue'
 import RedditNews from './components/RedditNews.vue'
 import TrendingNews from './components/TrendingNews.vue'
+import ClaudeCode from './components/ClaudeCode.vue'
 import Settings from './components/Settings.vue'
 import { useStockData } from './composables/useStockData'
 import { useStockFilters } from './composables/useStockFilters'
