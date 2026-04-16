@@ -34,7 +34,6 @@ from routers import (
     health,
     config,
     reddit,
-    trending,
     claude_code,
 )
 
@@ -45,7 +44,6 @@ app.include_router(util.router)
 app.include_router(health.router)
 app.include_router(config.router)
 app.include_router(reddit.router)
-app.include_router(trending.router)
 app.include_router(claude_code.router)
 
 
