@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 
 export function useStockFilters(stocksRef) {
   const selectedIndustry = ref('')
@@ -106,6 +106,36 @@ export function useStockFilters(stocksRef) {
     }
   }
 
+  const stocksByTagCount = computed(() => {
+    const stocks = stocksRef.value
+    const result = { 5: [], 4: [], 3: [], 2: [], 1: [], 0: [] }
+    
+    const allBoards = boardData.value.all || []
+    const industryMap = {}
+    allBoards.forEach(item => {
+      industryMap[item.industry] = item.count
+    })
+    
+    stocks.forEach(s => {
+      const industryCount = industryMap[s.industry] || 0
+      const count = 
+        (s.first_seal_time <= '1000' ? 1 : 0) +
+        (s.turnover_rate >= 5 && s.turnover_rate <= 15 ? 1 : 0) +
+        (s.flow_market_cap >= 30 && s.flow_market_cap <= 150 ? 1 : 0) +
+        (industryCount >= 2 ? 1 : 0) +
+        (s.bomb_count > 0 ? 1 : 0)
+      
+      if (result[count]) {
+        result[count].push({
+          ...s,
+          tagCount: count
+        })
+      }
+    })
+    
+    return result
+  })
+
   return {
     selectedIndustry,
     sortField,
@@ -119,5 +149,6 @@ export function useStockFilters(stocksRef) {
     filteredStocks,
     sortBy,
     toggleIndustry,
+    stocksByTagCount,
   }
 }

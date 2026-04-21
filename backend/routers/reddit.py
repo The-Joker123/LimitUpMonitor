@@ -7,7 +7,8 @@ router = APIRouter(prefix="/api", tags=["reddit"])
 
 ALLOWED_SUBREDDITS = [
     "worldnews", "technology", "programming",
-    "science", "business", "stocks"
+    "science", "business", "stocks",
+    "geopolitics", "War", "dataisbeautiful", "StartledCats"
 ]
 
 

@@ -145,7 +145,6 @@
 
     <div class="board-stats">
       <div class="board-header">
-        <span class="board-title">板块统计</span>
         <div class="board-tabs">
           <button
             v-for="tab in boardTabs"
@@ -156,21 +155,53 @@
             {{ tab.label }}
           </button>
         </div>
+        <div class="view-toggle">
+          <button :class="['toggle-btn', { active: boardViewMode === 'board' }]" @click="toggleView('board')">板块</button>
+          <button :class="['toggle-btn', { active: boardViewMode === 'tag' }]" @click="toggleView('tag')">标记</button>
+        </div>
       </div>
       <div class="board-content">
-        <div v-if="currentBoardStats.length === 0" class="empty-state">
-          暂无数据
+        <div v-if="boardViewMode === 'board'">
+          <div v-if="currentBoardStats.length === 0" class="empty-state">
+            暂无数据
+          </div>
+          <div v-else class="board-list">
+            <div
+              v-for="item in currentBoardStats"
+              :key="item.industry"
+              class="board-item"
+              :class="{ active: selectedIndustry === item.industry }"
+              @click="toggleIndustry(item.industry)"
+            >
+              <span class="board-name">{{ item.industry }}</span>
+              <span class="board-count">{{ item.count }}</span>
+            </div>
+          </div>
         </div>
-        <div v-else class="board-list">
-          <div
-            v-for="item in currentBoardStats"
-            :key="item.industry"
-            class="board-item"
-            :class="{ active: selectedIndustry === item.industry }"
-            @click="toggleIndustry(item.industry)"
-          >
-            <span class="board-name">{{ item.industry }}</span>
-            <span class="board-count">{{ item.count }}</span>
+        <div v-else>
+          <div v-for="count in [5, 4, 3, 2, 1, 0]" :key="count" class="tag-group">
+            <div v-if="stocksByTagCount[count]?.length" class="tag-header">
+              <span class="tag-label">{{ count }}个标记</span>
+              <span class="tag-count">{{ stocksByTagCount[count]?.length || 0 }}只</span>
+            </div>
+            <div class="tag-stocks">
+              <div
+                v-for="stock in stocksByTagCount[count]"
+                :key="stock.code"
+                class="tag-stock-item"
+                @click="toggleIndustry(stock.industry)"
+              >
+                <span class="stock-tags">
+                  <span :class="stock.first_seal_time <= '1000' ? 'tag-on' : 'tag-off'">时</span>
+                  <span :class="stock.turnover_rate >= 5 && stock.turnover_rate <= 15 ? 'tag-on' : 'tag-off'">换</span>
+                  <span :class="stock.flow_market_cap >= 30 && stock.flow_market_cap <= 150 ? 'tag-on' : 'tag-off'">值</span>
+                  <span :class="(industryCountMap[stock.industry] || 0) >= 2 ? 'tag-on' : 'tag-off'">板</span>
+                  <span :class="stock.bomb_count > 0 ? 'tag-on' : 'tag-off'">回</span>
+                </span>
+                <span class="stock-name" @click.stop="showStockProfile(stock)">{{ stock.name }}</span>
+                <span class="stock-industry">{{ stock.industry }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -381,6 +412,8 @@ import { useStockFilters } from './composables/useStockFilters'
 
 const currentView = ref('limit-up')
 const activeTab = ref('all')
+const boardViewMode = ref('board')
+const toggleView = (mode) => { boardViewMode.value = mode }
 const searchQuery = ref('')
 const showSettings = ref(false)
 
@@ -412,6 +445,7 @@ const {
   filteredStocks,
   sortBy,
   toggleIndustry,
+  stocksByTagCount,
 } = useStockFilters(stocks)
 
 // 同步的 computed
@@ -852,7 +886,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .board-title {
@@ -941,6 +975,116 @@ onUnmounted(() => {
   background: rgba(255,127,80,0.12);
   padding: 2px 10px;
   border-radius: 10px;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.toggle-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.8);
+}
+
+.toggle-btn.active {
+  background: rgba(78,205,196,0.2);
+  color: #4ecdc4;
+  border-color: rgba(78,205,196,0.4);
+}
+
+.tag-group {
+  margin-bottom: 12px;
+}
+
+.tag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 8px;
+}
+
+.tag-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ecdc4;
+}
+
+.tag-count {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+
+.tag-stocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-stock-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tag-stock-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.stock-tags {
+  display: flex;
+  gap: 2px;
+}
+
+.stock-tags span {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  border-radius: 3px;
+}
+
+.tag-on {
+  background: rgba(78,205,196,0.2);
+  color: #4ecdc4;
+}
+
+.tag-off {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.2);
+}
+
+.tag-stock-item .stock-name {
+  font-size: 12px;
+  color: #fff;
+}
+
+.tag-stock-item .stock-industry {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  padding: 2px 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
 }
 
 .stock-table {
