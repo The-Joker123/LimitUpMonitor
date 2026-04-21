@@ -35,6 +35,7 @@ from routers import (
     config,
     reddit,
     claude_code,
+    trending,
 )
 
 app.include_router(stocks.router)
@@ -45,6 +46,7 @@ app.include_router(health.router)
 app.include_router(config.router)
 app.include_router(reddit.router)
 app.include_router(claude_code.router)
+app.include_router(trending.router)
 
 
 if __name__ == "__main__":
