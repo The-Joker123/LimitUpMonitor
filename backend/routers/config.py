@@ -1,10 +1,11 @@
 from fastapi import APIRouter
 import json
+import os
 from pathlib import Path
 
 router = APIRouter(prefix="/api", tags=["config"])
 
-CONFIG_PATH = Path(__file__).parent.parent.parent / "config.json"
+CONFIG_PATH = Path(os.getenv("CONFIG_FILE", str(Path(__file__).parent.parent.parent / "config.json")))
 
 
 def load_config():

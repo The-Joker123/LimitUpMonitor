@@ -8,7 +8,7 @@ from models.schemas import ChatRequest
 
 router = APIRouter(prefix="/api", tags=["ai"])
 
-CONFIG_PATH = Path(__file__).parent.parent.parent / "config.json"
+CONFIG_PATH = Path(os.getenv("CONFIG_FILE", str(Path(__file__).parent.parent.parent / "config.json")))
 
 
 def load_ai_config():

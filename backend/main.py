@@ -13,9 +13,7 @@ load_dotenv()
 app = FastAPI(title="A股涨停连板监控系统 V1")
 
 # CORS配置 - 仅允许特定前端域名
-ALLOWED_ORIGINS = os.getenv(
-    "ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000"
-).split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,6 +45,23 @@ app.include_router(config.router)
 app.include_router(reddit.router)
 app.include_router(claude_code.router)
 app.include_router(trending.router)
+
+# 生产环境：托管前端静态文件
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pathlib import Path as _Path
+
+FRONTEND_DIR = _Path(__file__).parent.parent / "frontend" / "dist"
+
+if FRONTEND_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="static-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        file_path = FRONTEND_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 
 if __name__ == "__main__":
