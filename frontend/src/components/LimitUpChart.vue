@@ -87,10 +87,10 @@ const updateChart = () => {
       itemGap: 20
     },
     grid: {
-      left: 50,
-      right: 30,
-      top: 50,
-      bottom: 80
+      left: window.innerWidth <= 768 ? 30 : 50,
+      right: window.innerWidth <= 768 ? 15 : 30,
+      top: window.innerWidth <= 768 ? 35 : 50,
+      bottom: window.innerWidth <= 768 ? 50 : 80
     },
     xAxis: {
       type: 'category',
@@ -203,6 +203,7 @@ const updateChart = () => {
 
 const handleResize = () => {
   chartInstance?.resize()
+  updateChart()
 }
 
 watch([() => props.data, () => props.shIndex], () => {
@@ -248,5 +249,11 @@ onUnmounted(() => {
 .chart-container {
   width: 100%;
   height: 320px;
+}
+
+@media (max-width: 768px) {
+  .chart-container {
+    height: 220px;
+  }
 }
 </style>

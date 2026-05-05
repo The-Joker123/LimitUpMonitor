@@ -465,4 +465,26 @@ const autoResize = (e) => {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+  .ai-panel {
+    width: 100%;
+    height: 100%;
+    bottom: 0;
+    right: 0;
+    border-radius: 0;
+  }
+
+  .ai-header {
+    padding: 12px 16px;
+  }
+
+  .ai-input-area {
+    padding: 10px 12px;
+  }
+
+  .ai-input-area textarea {
+    padding: 10px 12px;
+  }
+}
 </style>

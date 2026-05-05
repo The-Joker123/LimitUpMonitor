@@ -1614,6 +1614,10 @@ tr:hover td:last-child {
 }
 
 @media (max-width: 768px) {
+  .dashboard {
+    padding: 12px;
+  }
+
   .navbar {
     flex-direction: column;
     gap: 12px;
@@ -1623,6 +1627,18 @@ tr:hover td:last-child {
   .navbar-tabs {
     width: 100%;
     justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .tab-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    gap: 4px;
+  }
+
+  .tab-item svg {
+    width: 14px;
+    height: 14px;
   }
 
   .toolbar {
@@ -1638,6 +1654,33 @@ tr:hover td:last-child {
 
   .summary-cards {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .summary-card {
+    padding: 16px 14px;
+  }
+
+  .card-value {
+    font-size: 28px;
+  }
+
+  .card-unit {
+    font-size: 14px;
+  }
+
+  .card-label {
+    font-size: 12px;
+  }
+
+  .board-stats {
+    padding: 14px;
+  }
+
+  .board-item {
+    padding: 8px 12px;
+    gap: 8px;
+    font-size: 13px;
   }
 
   .table-header {
@@ -1652,6 +1695,20 @@ tr:hover td:last-child {
 
   .search-input {
     width: 100%;
+  }
+
+  .table-wrapper {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  th, td {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  th:nth-child(n+6),
+  td:nth-child(n+6) {
+    display: none;
   }
 }
 </style>
