@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 import json
 import os
 from pathlib import Path
@@ -19,19 +19,30 @@ def save_config(config):
     CONFIG_PATH.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def get_admin_password():
+    pw = os.getenv("ADMIN_PASSWORD", "")
+    if pw:
+        return pw
+    return load_config().get("adminPassword", "")
+
+
 @router.get("/config")
 def get_config():
-    """获取配置（AI key 除外）"""
+    """获取配置（AI key 和管理密码除外）"""
     config = load_config()
-    # 不返回明文 API Key
     if "ai" in config:
         config["ai"]["apiKey"] = ""
+    config.pop("adminPassword", None)
     return config
 
 
 @router.post("/config/ai")
-def update_ai_config(provider: str, api_key: str, base_url: str, model: str):
-    """更新 AI 配置"""
+def update_ai_config(provider: str, api_key: str, base_url: str, model: str, admin_password: str = ""):
+    """更新 AI 配置（需要管理密码）"""
+    expected = get_admin_password()
+    if expected and admin_password != expected:
+        raise HTTPException(status_code=403, detail="管理密码错误")
+
     config = load_config()
     if "ai" not in config:
         config["ai"] = {}

@@ -32,6 +32,7 @@ RUN mkdir -p /data && cp /config.json /data/config.json
 
 ENV CONFIG_FILE=/data/config.json
 ENV ALLOWED_ORIGINS=*
+ENV ADMIN_PASSWORD=""
 ENV PORT=7860
 
 EXPOSE 7860

@@ -43,6 +43,16 @@
           <el-input v-model="form.model" placeholder="模型名称" />
         </div>
 
+        <div class="form-group">
+          <label>管理密码</label>
+          <el-input
+            v-model="form.adminPassword"
+            type="password"
+            placeholder="修改配置需要管理密码"
+            show-password
+          />
+        </div>
+
         <div v-if="error" class="error-msg">{{ error }}</div>
         <div v-if="success" class="success-msg">{{ success }}</div>
       </div>
@@ -85,7 +95,8 @@ const form = ref({
   provider: 'minimax',
   apiKey: '',
   baseUrl: 'https://api.minimaxi.com/anthropic',
-  model: 'MiniMax-M2.7'
+  model: 'MiniMax-M2.7',
+  adminPassword: ''
 })
 
 const saving = ref(false)
@@ -104,6 +115,7 @@ watch(() => props.visible, async (val) => {
   if (val) {
     error.value = ''
     success.value = ''
+    form.value.adminPassword = ''
     await loadConfig()
   }
 })
@@ -135,14 +147,19 @@ const save = async () => {
         provider: form.value.provider,
         api_key: form.value.apiKey,
         base_url: form.value.baseUrl,
-        model: form.value.model
+        model: form.value.model,
+        admin_password: form.value.adminPassword
       }
     })
     success.value = '保存成功'
     emit('saved')
     setTimeout(() => close(), 1000)
   } catch (e) {
-    error.value = '保存失败: ' + (e.message || e)
+    if (e.response && e.response.status === 403) {
+      error.value = '管理密码错误，请重新输入'
+    } else {
+      error.value = '保存失败: ' + (e.message || e)
+    }
   } finally {
     saving.value = false
   }

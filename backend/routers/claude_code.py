@@ -32,9 +32,89 @@ async def get_official_updates():
 
     updates = [
         {
-            "version": "v2.1.110",
+            "version": "v2.1.126",
+            "date": "2026-05-01",
+            "highlights": "/model picker lists models from gateway's /v1/models endpoint. Added claude project purge command.",
+        },
+        {
+            "version": "v2.1.123",
+            "date": "2026-04-29",
+            "highlights": "Fixed OAuth authentication failing with a 401 retry loop when CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1 is set.",
+        },
+        {
+            "version": "v2.1.122",
+            "date": "2026-04-28",
+            "highlights": "Added ANTHROPIC_BEDROCK_SERVICE_TIER env var to select Bedrock service tier (default, flex, or priority).",
+        },
+        {
+            "version": "v2.1.121",
+            "date": "2026-04-28",
+            "highlights": "Added alwaysLoad option to MCP server config. Added claude plugin prune command.",
+        },
+        {
+            "version": "v2.1.119",
+            "date": "2026-04-23",
+            "highlights": "/config settings now persist to ~/.claude/settings.json. Added prUrlTemplate for custom PR URLs.",
+        },
+        {
+            "version": "v2.1.118",
+            "date": "2026-04-23",
+            "highlights": "Added vim visual mode (v) and visual-line mode (V). Merged /cost and /stats into /usage.",
+        },
+        {
+            "version": "v2.1.117",
+            "date": "2026-04-22",
+            "highlights": "Forked subagents can be enabled on external builds via CLAUDE_CODE_FORK_SUBAGENT=1. Agent frontmatter mcpServers support.",
+        },
+        {
+            "version": "v2.1.116",
+            "date": "2026-04-20",
+            "highlights": "/resume on large sessions is up to 67% faster. Faster MCP startup with multi-server configs.",
+        },
+        {
+            "version": "v2.1.114",
+            "date": "2026-04-18",
+            "highlights": "Fixed a crash in the permission dialog when an agent teams teammate requested tool permission.",
+        },
+        {
+            "version": "v2.1.113",
+            "date": "2026-04-17",
+            "highlights": "CLI spawns native Claude Code binary instead of bundled JavaScript. Added sandbox.network.deniedDomains setting.",
+        },
+        {
+            "version": "v2.1.112",
             "date": "2026-04-16",
-            "highlights": "Latest Claude Code release. Check /config for updates.",
+            "highlights": "Fixed 'claude-opus-4-7 is temporarily unavailable' for auto mode.",
+        },
+        {
+            "version": "v2.1.111",
+            "date": "2026-04-16",
+            "highlights": "Claude Opus 4.7 xhigh available! Use /effort to tune speed vs. intelligence. Auto mode for Max subscribers.",
+        },
+        {
+            "version": "v2.1.110",
+            "date": "2026-04-15",
+            "highlights": "Added /tui command for flicker-free rendering. Changed Ctrl+O to toggle normal and verbose output.",
+        },
+        {
+            "version": "v2.1.109",
+            "date": "2026-04-15",
+            "highlights": "Improved the extended-thinking indicator with a rotating progress hint.",
+        },
+        {
+            "version": "v2.1.108",
+            "date": "2026-04-14",
+            "highlights": "Added ENABLE_PROMPT_CACHING_1H env var to opt into 1-hour prompt cache TTL on API key, Bedrock, Vertex, and Foundry.",
+        },
+        {
+            "version": "v2.1.107",
+            "date": "2026-04-14",
+            "highlights": "Show thinking hints sooner during long operations.",
+        },
+        {
+            "version": "v2.1.105",
+            "date": "2026-04-13",
+            "highlights": "Added path parameter to EnterWorktree tool. Added PreCompact hook support.",
         },
         {
             "version": "v2.1.101",

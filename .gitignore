@@ -5,3 +5,6 @@ dist/
 .env
 backend/.env
 config.json
+nul
+test_result.json
+__pycache__/

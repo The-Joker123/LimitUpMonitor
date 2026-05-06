@@ -60,6 +60,7 @@
         </button>
       </div>
 
+      <span v-if="currentModel" class="model-tag">{{ currentModel }}</span>
       <button class="settings-btn" @click="showSettings = true" title="设置">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
@@ -409,6 +410,7 @@ import ClaudeCode from './components/ClaudeCode.vue'
 import Settings from './components/Settings.vue'
 import { useStockData } from './composables/useStockData'
 import { useStockFilters } from './composables/useStockFilters'
+import axios from 'axios'
 
 const currentView = ref('limit-up')
 const activeTab = ref('all')
@@ -416,6 +418,17 @@ const boardViewMode = ref('board')
 const toggleView = (mode) => { boardViewMode.value = mode }
 const searchQuery = ref('')
 const showSettings = ref(false)
+const currentModel = ref('')
+
+const loadModelConfig = async () => {
+  try {
+    const res = await axios.get('/api/config')
+    const ai = res.data.ai || {}
+    currentModel.value = ai.model || ''
+  } catch (e) {
+    // ignore
+  }
+}
 
 // 使用 composables
 const {
@@ -533,7 +546,7 @@ const getPctClass = (pct) => {
 }
 
 const onSettingsSaved = () => {
-  // Settings saved, AI will use new config on next request
+  loadModelConfig()
 }
 
 onMounted(() => {
@@ -541,6 +554,7 @@ onMounted(() => {
   fetchEmotionHistory()
   fetchShIndex()
   startAutoRefresh()
+  loadModelConfig()
 })
 
 onUnmounted(() => {
@@ -649,6 +663,17 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.model-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(255, 102, 0, 0.15);
+  border: 1px solid rgba(255, 102, 0, 0.3);
+  border-radius: 12px;
+  font-size: 11px;
+  color: #ff6600;
+  white-space: nowrap;
 }
 
 .settings-btn {
